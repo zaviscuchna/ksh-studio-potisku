@@ -1,0 +1,24 @@
+{
+ "v": 1,
+ "name": "Logo · klíček na levou hruď",
+ "model": "431",
+ "color": "01",
+ "assets": {},
+ "layers": [
+  {
+   "id": "jw7q8xv",
+   "type": "logo",
+   "place": "hrud-l",
+   "x": 9.5,
+   "y": 17,
+   "w": 8,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "variant": "symbol"
+  }
+ ]
+}

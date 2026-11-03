@@ -1,0 +1,42 @@
+[
+ {
+  "soubor": "koncept-a-klicek.json",
+  "nazev": "Koncept A · Klíček",
+  "popis": "Vibe Hoodie · černá"
+ },
+ {
+  "soubor": "koncept-b-marker.json",
+  "nazev": "Koncept B · Marker",
+  "popis": "Vibe Hoodie · černá"
+ },
+ {
+  "soubor": "koncept-c-okno.json",
+  "nazev": "Koncept C · Okno 2.0",
+  "popis": "Vibe Hoodie · černá"
+ },
+ {
+  "soubor": "koncept-d-dither.json",
+  "nazev": "Koncept D · Dither",
+  "popis": "Vibe Hoodie · černá"
+ },
+ {
+  "soubor": "logo-stred-hrudi.json",
+  "nazev": "Logo · střed hrudi",
+  "popis": "Vibe Hoodie · černá"
+ },
+ {
+  "soubor": "logo-pod-sebou.json",
+  "nazev": "Logo · pod sebou na hruď",
+  "popis": "Vibe Hoodie · černá"
+ },
+ {
+  "soubor": "logo-klicek-hrud.json",
+  "nazev": "Logo · klíček na levou hruď",
+  "popis": "Vibe Hoodie · černá"
+ },
+ {
+  "soubor": "logo-hrud-zada.json",
+  "nazev": "Logo · hruď + velké na záda",
+  "popis": "Vibe Hoodie · černá"
+ }
+]

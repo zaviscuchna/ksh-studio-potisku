@@ -1,0 +1,24 @@
+{
+ "v": 1,
+ "name": "Logo · pod sebou na hruď",
+ "model": "431",
+ "color": "01",
+ "assets": {},
+ "layers": [
+  {
+   "id": "97w9axe",
+   "type": "logo",
+   "place": "hrud-s",
+   "x": 0,
+   "y": 22,
+   "w": 16,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "variant": "stack"
+  }
+ ]
+}

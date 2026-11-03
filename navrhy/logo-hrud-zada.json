@@ -1,0 +1,39 @@
+{
+ "v": 1,
+ "name": "Logo · hruď + velké na záda",
+ "model": "431",
+ "color": "01",
+ "assets": {},
+ "layers": [
+  {
+   "id": "dm5531i",
+   "type": "logo",
+   "place": "hrud-l",
+   "x": 9.5,
+   "y": 17,
+   "w": 8,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "variant": "symbol"
+  },
+  {
+   "id": "kebp8d2",
+   "type": "logo",
+   "place": "zada",
+   "x": 0,
+   "y": 27,
+   "w": 26,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "variant": "stack"
+  }
+ ]
+}

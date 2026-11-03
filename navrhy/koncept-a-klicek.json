@@ -1,0 +1,39 @@
+{
+ "v": 1,
+ "name": "Koncept A · Klíček",
+ "model": "431",
+ "color": "01",
+ "assets": {},
+ "layers": [
+  {
+   "id": "gwhiiqg",
+   "type": "concept",
+   "place": "hrud-l",
+   "x": 9.5,
+   "y": 17,
+   "w": 8,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "A-front"
+  },
+  {
+   "id": "ne67tav",
+   "type": "concept",
+   "place": "rukav-l",
+   "x": 0,
+   "y": 14,
+   "w": 16.04,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "A-sleeve"
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "v": 1,
+ "name": "Koncept B · Marker",
+ "model": "431",
+ "color": "01",
+ "assets": {},
+ "layers": [
+  {
+   "id": "dpt4yu9",
+   "type": "concept",
+   "place": "hrud-l",
+   "x": 9.5,
+   "y": 17,
+   "w": 10,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "B-front"
+  },
+  {
+   "id": "2zygabk",
+   "type": "concept",
+   "place": "zada",
+   "x": 0,
+   "y": 24.490000000000002,
+   "w": 30,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "B-back"
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+{
+ "v": 1,
+ "name": "Koncept C · Okno 2.0",
+ "model": "431",
+ "color": "01",
+ "assets": {},
+ "layers": [
+  {
+   "id": "e3lja7j",
+   "type": "concept",
+   "place": "hrud-l",
+   "x": 9.61,
+   "y": 17,
+   "w": 12.22,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "C-front"
+  },
+  {
+   "id": "rfg6o8i",
+   "type": "concept",
+   "place": "zada",
+   "x": 0,
+   "y": 30,
+   "w": 30,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "C-back"
+  }
+ ]
+}

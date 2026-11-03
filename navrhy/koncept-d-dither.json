@@ -1,0 +1,39 @@
+{
+ "v": 1,
+ "name": "Koncept D · Dither",
+ "model": "431",
+ "color": "01",
+ "assets": {},
+ "layers": [
+  {
+   "id": "4krt78v",
+   "type": "concept",
+   "place": "hrud-l",
+   "x": 9.5,
+   "y": 17,
+   "w": 8,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "D-front"
+  },
+  {
+   "id": "owattyp",
+   "type": "concept",
+   "place": "zada",
+   "x": 0,
+   "y": 31.125,
+   "w": 28,
+   "rot": 0,
+   "hidden": false,
+   "tech": "dtf",
+   "scheme": "auto",
+   "colA": "#f0716c",
+   "colB": "#f3eee6",
+   "key": "D-back"
+  }
+ ]
+}
