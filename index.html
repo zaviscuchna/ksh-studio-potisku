@@ -227,9 +227,18 @@ pre.brief{white-space:pre-wrap;background:#fff;border:1.5px solid var(--line);pa
               <button data-logo="wordmark">KSH nápis<small>fixový tah</small></button>
               <button data-logo="lockup">Logo celé vedle sebe<small>klíček + KSH + PARTNERS</small></button>
               <button data-logo="stack">Logo celé pod sebou<small>na střed hrudi nebo záda</small></button>
+              <button data-logo="krakram">KraKrám logo<small>vektor, přebarvitelné</small></button>
+              <button data-logo="krakram-ksh">KraKrám · powered by KSH<small>logo s podpisem KSH partners</small></button>
             </div></div>
           <button class="btn" id="b-addtext">+ Text</button>
           <button class="btn" id="b-addimg">+ Obrázek</button>
+          <div class="menu"><button class="btn" id="b-addshape" style="width:100%">+ Tvar</button>
+            <div class="dd" id="dd-shape" hidden style="left:0;right:auto">
+              <button data-shape="rect">Obdélník<small>plocha, rámeček, podklad</small></button>
+              <button data-shape="ellipse">Kruh / elipsa</button>
+              <button data-shape="line">Čára<small>oddělovač</small></button>
+              <button data-shape="dots">Tečkovaná čára<small>jako v seznamu Lineup</small></button>
+            </div></div>
           <div class="menu"><button class="btn" id="b-addkonc" style="width:100%">+ Koncept</button>
             <div class="dd" id="dd-konc" hidden style="right:0"></div></div>
           <div class="menu" style="grid-column:1/-1"><button class="btn wide" id="b-preset" style="width:100%">Šablony návrhů ▾</button>
@@ -273,6 +282,13 @@ window.KSH = {meta:null, logo:null, konc:null, model:null, photos:{}, _wait:{},
 'use strict';
 const KORAL='#f0716c', INK='#1e1e1e', KREM='#f3eee6', BILA='#ffffff';
 const PALETA=[['Korál',KORAL],['Inkoust',INK],['Krém',KREM],['Bílá',BILA],['Černá','#000000']];
+const KK_LES='#4A8B80', KK_LES_D='#2D6B62', KK_MATA='#B8DDD8', KK_KREM='#F7F4EF', KK_INK='#1A1A18';
+const PAL_SKUPINY=[['KSH',[['Korál',KORAL],['Inkoust',INK],['Krém',KREM]]],
+  ['KraKrám',[['Lesní',KK_LES],['Tmavě lesní',KK_LES_D],['Mátová',KK_MATA],['Krém',KK_KREM],['Inkoust',KK_INK]]],
+  ['Základ',[['Bílá',BILA],['Černá','#000000'],['Šedá','#8a8580']]]];
+const PAL_LS='ksh-studio-paleta';
+function mojeBarvy(){try{return JSON.parse(localStorage.getItem(PAL_LS)||'[]');}catch(e){return [];}}
+function ulozBarvy(a){try{localStorage.setItem(PAL_LS,JSON.stringify(a.slice(0,24)));}catch(e){}}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const fmt=(v,d=1)=>(Math.round(v*10**d)/10**d).toLocaleString('cs-CZ',{minimumFractionDigits:0,maximumFractionDigits:d});
@@ -291,7 +307,9 @@ const LOGO=(()=>{
   // brand icon v liště
   document.getElementById('brandsym').innerHTML=L.symbol.paths.map(d=>`<path d="${d}"/>`).join('');
   document.getElementById('brandsym').setAttribute('transform',`translate(${L.symbol.tx},${L.symbol.ty}) matrix(0.1,0,0,-0.1,0,2000)`);
-  return {sym, symW:L.symbol.w, symH:L.symbol.h, wm, wmW:vw, wmH:vh};
+  const kk=new Path2D(); let kkW=100,kkH=100;
+  if(L.krakram){const [x0,y0,w0,h0]=L.krakram.vb;const m=new DOMMatrix().translate(-x0,-y0);for(const d of L.krakram.paths) kk.addPath(new Path2D(d),m);kkW=w0;kkH=h0;}
+  return {sym, symW:L.symbol.w, symH:L.symbol.h, wm, wmW:vw, wmH:vh, kk, kkW, kkH, kkKsh:L.krakramKsh};
 })();
 
 // ---------- místa potisku (cm: x od středu, y od švu u krku; rukáv: x napříč, y podél od ramene) ----------
@@ -312,7 +330,7 @@ const SCHEMES=[['auto','Auto'],['koral','Korál'],['krem','Krém'],['ink','Inkou
 
 // ---------- stav ----------
 let D=null;           // návrh: {name, model, color, layers[], assets{}}
-let ui={view:'front', sel:null, guides:true, grid:false, mode:'edit', wall:{scope:'model',view:'front',scheme:'design',size:170}};
+let ui={colTarget:'A',view:'front', sel:null, guides:true, grid:false, mode:'edit', wall:{scope:'model',view:'front',scheme:'design',size:170}};
 const hist={past:[],future:[]};
 
 function defaultDesign(){
@@ -330,7 +348,8 @@ function newLayer(type,extra={}){
   return L;
 }
 function layerName(L){
-  if(L.type==='logo') return {symbol:'Klíček',wordmark:'KSH nápis',lockup:'Logo celé',stack:'Logo pod sebou'}[L.variant]||'Logo';
+  if(L.type==='logo') return {symbol:'Klíček',wordmark:'KSH nápis',lockup:'Logo celé',stack:'Logo pod sebou',krakram:'KraKrám logo','krakram-ksh':'KraKrám · powered by KSH'}[L.variant]||'Logo';
+  if(L.type==='shape') return {rect:'Obdélník',ellipse:'Kruh / elipsa',line:L.dash?'Tečkovaná čára':'Čára'}[L.kind]||'Tvar';
   if(L.type==='text') return '„'+(L.text||'').split('\n')[0].slice(0,22)+'“';
   if(L.type==='image') return (D.assets[L.asset]?.name)||'Obrázek';
   if(L.type==='concept') return 'Koncept '+(KSH.konc[L.key]?.nazev||L.key)+' · '+({front:'hruď',back:'záda',sleeve:'rukáv'}[KSH.konc[L.key]?.misto]||'');
@@ -353,7 +372,10 @@ function colors(L,col,override){
     case 'ink': return [INK,INK];
     case 'tonal': {const t=dark?shade(col.hex,.22):shade(col.hex,-.2); return [t,t];}
     case 'custom': return [L.colA,L.colB];
-    default: return [KORAL, dark?KREM:INK];
+    default:
+      if(L.type==='logo'&&String(L.variant).startsWith('krakram')){const k=dark?KK_MATA:KK_LES;return [k,k];}
+      if(L.type==='shape'){const k=dark?KREM:INK;return [k,k];}
+      return [KORAL, dark?KREM:INK];
   }
 }
 // přirozená velikost vrstvy v jednotkách + kreslení (počátek vlevo nahoře)
@@ -363,6 +385,14 @@ function getImg(src){
   let im=imgCache.get(src);
   if(!im){im=new Image(); im.onload=()=>{requestRender(); if(ui.mode==='wall') scheduleWall();}; im.src=src; imgCache.set(src,im);}
   return im.complete&&im.naturalWidth?im:null;
+}
+const tintCache=new Map();
+function tinted(im,color,w,h){
+  const key=im.src.length+':'+im.src.slice(-40)+'|'+color+'|'+w+'x'+h;
+  let t=tintCache.get(key); if(t) return t;
+  t=document.createElement('canvas');t.width=Math.max(1,Math.round(w));t.height=Math.max(1,Math.round(h));const tc=t.getContext('2d');
+  tc.drawImage(im,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';tc.fillStyle=color;tc.fillRect(0,0,t.width,t.height);
+  tintCache.set(key,t); if(tintCache.size>60) tintCache.delete(tintCache.keys().next().value); return t;
 }
 function textMetrics(L){
   const c=natCtx; const fs=100; c.font=`${L.weight||400} ${fs}px "${L.font}"`;
@@ -380,7 +410,10 @@ function natural(L,col){
     if(L.variant==='wordmark') return {w,h};
     if(L.variant==='lockup'){const symH=h*1.25,symW=LOGO.symW*symH/LOGO.symH;return {w:symW+h*.35+w,h:h*1.62};}
     if(L.variant==='stack'){const symH=h*1.15;return {w,h:symH+h*.12+h+h*.42};}
+    if(L.variant==='krakram') return {w:LOGO.kkW,h:LOGO.kkH};
+    if(L.variant==='krakram-ksh') return {w:LOGO.kkKsh.w,h:LOGO.kkKsh.h};
   }
+  if(L.type==='shape') return {w:100,h:Math.max(.05,100*(L.h||1)/Math.max(.1,L.w))};
   if(L.type==='text'){const m=textMetrics(L);return {w:m.w,h:m.h};}
   if(L.type==='image'){const a=D.assets[L.asset];return a?{w:a.w,h:a.h}:{w:100,h:100};}
   if(L.type==='concept'){const k=KSH.konc[L.key];return {w:k.wmm,h:k.hmm};}
@@ -408,6 +441,15 @@ function drawLayerContent(c,L,col,override){
       const tw=c.measureText('PARTNERS').width-ls;
       c.textBaseline='alphabetic';c.fillText('PARTNERS',(w-tw)/2,symH+h*.12+h+h*.36);c.restore();return;
     }
+    if(L.variant==='krakram'){c.fillStyle=A;c.fill(LOGO.kk);return;}
+    if(L.variant==='krakram-ksh'){const im=getImg(LOGO.kkKsh.src);if(!im)return;c.drawImage(tinted(im,A,LOGO.kkKsh.w,LOGO.kkKsh.h),0,0,LOGO.kkKsh.w,LOGO.kkKsh.h);return;}
+  }
+  if(L.type==='shape'){
+    const n=natural(L,col);c.fillStyle=A;
+    if(L.kind==='ellipse'){c.beginPath();c.ellipse(n.w/2,n.h/2,n.w/2,n.h/2,0,0,7);c.fill();}
+    else if(L.kind==='line'&&L.dash){const r=n.h/2;c.beginPath();for(let x=r;x<=n.w-r+.01;x+=n.h*2.9){c.moveTo(x+r,r);c.arc(x,r,r,0,7);}c.fill();}
+    else c.fillRect(0,0,n.w,n.h);
+    return;
   }
   if(L.type==='text'){
     const m=textMetrics(L);
@@ -420,15 +462,13 @@ function drawLayerContent(c,L,col,override){
   if(L.type==='image'){
     const a=D.assets[L.asset]; const im=a&&getImg(a.src); if(!im) return;
     if(L.tint){ // přebarvit jednobarevné logo
-      const t=document.createElement('canvas');t.width=a.w;t.height=a.h;const tc=t.getContext('2d');
-      tc.drawImage(im,0,0,a.w,a.h);tc.globalCompositeOperation='source-in';tc.fillStyle=colors(L,col,override)[0];tc.fillRect(0,0,a.w,a.h);
-      c.drawImage(t,0,0,a.w,a.h);
+      const sc=Math.min(1,2400/Math.max(a.w,a.h));c.drawImage(tinted(im,A,a.w*sc,a.h*sc),0,0,a.w,a.h);
     } else c.drawImage(im,0,0,a.w,a.h);
     return;
   }
   if(L.type==='concept'){
     const k=KSH.konc[L.key]; const im=getImg(col.dark?k.dark:k.light); if(!im) return;
-    c.drawImage(im,0,0,k.wmm,k.hmm);
+    if(L.tint) c.drawImage(tinted(im,A,im.naturalWidth,im.naturalHeight),0,0,k.wmm,k.hmm); else c.drawImage(im,0,0,k.wmm,k.hmm);
   }
 }
 
@@ -788,7 +828,14 @@ function addLayer(L,{focus=true}={}){
 function removeLayer(id){D.layers=D.layers.filter(l=>l.id!==id);if(ui.sel===id)ui.sel=null;commit();}
 function duplicate(){const L=getSel();if(!L)return;const c=JSON.parse(JSON.stringify(L));c.id=uid();c.x+=1;c.y+=1;D.layers.push(c);ui.sel=c.id;commit();}
 function moveLayer(id,dir){const i=D.layers.findIndex(l=>l.id===id);const j=i+dir;if(j<0||j>=D.layers.length)return;[D.layers[i],D.layers[j]]=[D.layers[j],D.layers[i]];commit();}
+function addShape(kind){
+  const place=viewKind(ui.view)==='back'?'zada':viewKind(ui.view)==='side'?'rukav-l':'hrud-s';const def=places()[place].def;
+  const o={rect:{kind:'rect',w:10,h:6},ellipse:{kind:'ellipse',w:6,h:6},line:{kind:'line',w:20,h:.1},dots:{kind:'line',dash:true,w:20,h:.12}}[kind];
+  addLayer(newLayer('shape',Object.assign({place,x:def.x,y:def.y},o)));
+}
 function addLogo(variant){
+  if(String(variant).startsWith('krakram')){const place=viewKind(ui.view)==='back'?'zada':viewKind(ui.view)==='side'?'rukav-l':'hrud-l';const def=places()[place].def;
+    addLayer(newLayer('logo',{variant,place,x:def.x,y:def.y,w:place==='zada'?24:place==='rukav-l'?7:9,rot:0}));return;}
   const place=variant==='stack'?(viewKind(ui.view)==='back'?'zada':'hrud-s'):variant==='lockup'?'hrud-s':(viewKind(ui.view)==='back'?'zada':viewKind(ui.view)==='side'?'rukav-l':'hrud-l');
   const def=places()[place].def;
   const w={symbol:place==='hrud-l'?8:place==='rukav-l'?6:20,wordmark:place==='hrud-l'?10:24,lockup:22,stack:place==='zada'?26:18}[variant];
@@ -825,7 +872,35 @@ const PRESETS=[
   ['B','Koncept B · Marker','KSH fixou na hruď a velké přes záda',()=>[cl('B-front'),cl('B-back')]],
   ['C','Koncept C · Okno 2.0','okna z webu na zádech',()=>[cl('C-front'),cl('C-back')]],
   ['D','Koncept D · Dither','3D klíček z teček',()=>[cl('D-front'),cl('D-back')]],
+  ['E','KSH + KraKrám · Lineup','vepředu KSH, vzadu KraKrám a co děláme — každý text a čára jde upravit',()=>[newLayer('logo',{variant:'lockup',place:'hrud-s',x:0,y:places()['hrud-s'].def.y-4,w:20}),...lineupLayers()]],
+  ['F','KSH + KraKrám · Okna','ikona KSH vepředu, vzadu KraKrám a portfolio v oknech z webu',()=>[cl('C-front'),Object.assign(cl('F-back'),{y:cl('F-back').y+2})]],
 ];
+// Lineup (KSH + KraKrám) složený z upravitelných vrstev: texty, čáry, logo
+function lineupLayers(){
+  const T=17, F='JetBrains Mono', out=[];
+  const txt=(text,size,{weight=500,ls=0,align='left',use='B',edge=0,base=0}={})=>{
+    const L=newLayer('text',{text,font:F,weight,ls,align,textUses:use,place:'zada',x:0,y:0,w:1});
+    const m=textMetrics(L); L.w=m.w*size/100;
+    L.x=align==='left'?edge+L.w/2:align==='right'?edge-L.w/2:0; L.y=base-.285*size; return L;};
+  const line=(y,dash=false,x0=-15,x1=15,h=.08)=>newLayer('shape',{kind:'line',dash,place:'zada',x:(x0+x1)/2,y,w:Math.max(.2,x1-x0),h});
+  out.push(txt('KSH PARTNERS',.86,{weight:600,ls:.38,edge:-15,base:T+.8}));
+  out.push(txt('EST. 2025',.86,{weight:600,ls:.38,align:'right',use:'A',edge:15,base:T+.8}));
+  out.push(line(T+1.5));
+  const kw=17.8,kh=kw*LOGO.kkH/LOGO.kkW;
+  out.push(newLayer('logo',{variant:'krakram',place:'zada',x:0,y:T+3+kh/2,w:kw,scheme:'custom',colA:KORAL,colB:KORAL}));
+  out.push(txt('RETAIL',.86,{weight:600,ls:.6,align:'center',use:'A',base:T+3+kh+1.5}));
+  const ly=T+3+kh+2.7; out.push(line(ly));
+  const rows=[['PML Systém','software'],['Stavební deník','SaaS'],['Směny','SaaS'],['Výdejní automaty','vending'],['Weby a e-shopy','digital'],['AI agenti','AI']];
+  let b=ly+1.7;
+  for(const [n,t] of rows){
+    const a=txt(n,1.15,{weight:600,ls:.035,edge:-15,base:b}), c=txt(t,1.15,{weight:500,ls:.035,align:'right',use:'A',edge:15,base:b});
+    out.push(a,c,line(b-.32,true,-15+a.w+.4,15-c.w-.4,.11)); b+=1.55;
+  }
+  const fy=b-1.55+1.65; out.push(line(fy));
+  out.push(txt('obchody, automaty a software pod jednou střechou',.86,{weight:500,ls:.03,align:'center',base:fy+1.4}));
+  out.push(txt('ksh-partners.cz',.86,{weight:600,ls:.3,align:'center',use:'A',base:fy+2.5}));
+  return out;
+}
 function cl(key){const k=KSH.konc[key];const place={front:'hrud-l',back:'zada',sleeve:'rukav-l'}[k.misto];const def=places()[place].def;
   let x=def.x,y=def.y; if(place==='zada') y=places()[place].box[1]+k.hmm/20+1; if(place==='hrud-l'&&k.wmm>100) x=7.5+k.wmm/20-4;
   return newLayer('concept',{key,place,x,y,w:k.wmm/10});}
@@ -905,16 +980,29 @@ function renderProps(soft=false){
   propsFor=L.id;
   const pl=places(); const sz=layerSizeCm(L); const side=pl[L.place]?.view==='side';
   const schemeOpts=SCHEMES.map(([k,l])=>`<button class="opt" data-scheme="${k}" aria-pressed="${L.scheme===k}">${l}</button>`).join('');
-  const colorPick=(L.scheme==='custom')?`<div class="row2"><label class="f">${L.type==='logo'&&L.variant!=='symbol'&&L.variant!=='wordmark'?'Klíček + PARTNERS':'Barva'}<input type="color" id="p-ca" value="${L.colA}"></label>${L.type==='logo'&&(L.variant==='lockup'||L.variant==='stack')?`<label class="f">Nápis KSH<input type="color" id="p-cb" value="${L.colB}"></label>`:''}</div>
-    <div class="cdots">${PALETA.map(([n,h])=>`<button class="cdot" data-pal="${h}" title="${n}" style="background:${h}"></button>`).join('')}<small class="muted" style="color:var(--muted)">klik = barva vlevo, Shift+klik = vpravo</small></div>`:'';
+  const two=L.type==='logo'&&(L.variant==='lockup'||L.variant==='stack');
+  if(!two) ui.colTarget='A';
+  const [cA,cB]=colors(L,curColor());
+  const cur=ui.colTarget==='B'?cB:cA;
+  const sw=(h,n,extra='')=>`<button class="cdot" data-pal="${h}" title="${n} ${h}" aria-pressed="${cur.toLowerCase()===h.toLowerCase()}" style="background:${h}" ${extra}></button>`;
+  const moje=mojeBarvy();
+  const colorPick=`
+    ${two?`<div class="opts" role="group" aria-label="Kterou barvu měnit"><button class="opt" data-ct="A" aria-pressed="${ui.colTarget!=='B'}"><i class="sw" style="display:inline-block;width:11px;height:11px;border:1px solid #1e1e1e;background:${cA};vertical-align:-1px"></i> klíček + PARTNERS</button><button class="opt" data-ct="B" aria-pressed="${ui.colTarget==='B'}"><i style="display:inline-block;width:11px;height:11px;border:1px solid #1e1e1e;background:${cB};vertical-align:-1px"></i> nápis KSH</button></div>`:''}
+    ${PAL_SKUPINY.map(([g,arr])=>`<div class="cdots"><span style="width:58px;font-size:11.5px;color:var(--muted)">${g}</span>${arr.map(([n,h])=>sw(h,n)).join('')}</div>`).join('')}
+    <div class="cdots"><span style="width:58px;font-size:11.5px;color:var(--muted)">Moje</span>${moje.map(h=>sw(h,'Moje barva','data-moje="1"')).join('')||'<small style="color:var(--muted)">zatím nic</small>'}</div>
+    <div class="row2"><label class="f">Vlastní barva<input type="color" id="p-cpick" value="${cur}"></label><div style="display:grid;align-content:end"><button class="opt" data-savecol="${cur}" title="Přidat aktuální barvu do Moje barvy">+ uložit do Moje</button></div></div>
+    <small style="color:var(--muted)">Pravý klik na barvu v „Moje“ ji smaže.</small>`;
   let typeProps='';
   if(L.type==='text') typeProps=`<label class="f">Text<textarea id="p-text">${esc(L.text)}</textarea></label>
     <div class="row2"><label class="f">Písmo<select id="p-font">${FONTS.map(f=>`<option ${f===L.font?'selected':''}>${f}</option>`).join('')}</select></label>
     <label class="f">Tloušťka<select id="p-weight">${[300,400,500,600,700,800].map(w=>`<option value="${w}" ${+L.weight===w?'selected':''}>${w}</option>`).join('')}</select></label></div>
     <div class="row2"><label class="f">Prostrkání (em)<input type="number" id="p-ls" step="0.05" value="${L.ls||0}"></label>
     <label class="f">Zarovnání<select id="p-align">${[['left','vlevo'],['center','na střed'],['right','vpravo']].map(([v,l])=>`<option value="${v}" ${L.align===v?'selected':''}>${l}</option>`).join('')}</select></label></div>`;
-  if(L.type==='image') typeProps=`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="p-tint" ${L.tint?'checked':''}> Přebarvit (jednobarevné logo)</label>`;
-  const showColors=L.type==='logo'||L.type==='text'||(L.type==='image'&&L.tint);
+  if(L.type==='image'||L.type==='concept') typeProps=`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="p-tint" ${L.tint?'checked':''}> Přebarvit na jednu barvu</label>`;
+  if(L.type==='shape') typeProps=`<div class="row2"><label class="f">Tvar<select id="p-kind">${[['rect','obdélník'],['ellipse','kruh / elipsa'],['line','čára']].map(([v,l])=>`<option value="${v}" ${L.kind===v?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label class="f">${L.kind==='line'?'Tloušťka cm':'Výška cm'}<input type="number" id="p-sh" step="0.05" min="0.05" value="${L.h}"></label></div>
+    ${L.kind==='line'?`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="p-dash" ${L.dash?'checked':''}> Tečkovaná</label>`:''}`;
+  const showColors=L.type==='logo'||L.type==='text'||L.type==='shape'||((L.type==='image'||L.type==='concept')&&L.tint);
   box.innerHTML=`
     <label class="f">Umístění<select id="p-place">${Object.entries(pl).map(([k,p])=>`<option value="${k}" ${k===L.place?'selected':''}>${p.label}</option>`).join('')}</select></label>
     <div class="row"><label class="f">${side?'Napříč':'X od středu'}<input type="number" id="p-x" step="0.5" value="${Math.round(L.x*10)/10}"></label>
@@ -963,6 +1051,7 @@ document.addEventListener('click',e=>{
   if(t.dataset.color){setColor(t.dataset.color);return;}
   if(t.dataset.view&&!t.disabled){setView(t.dataset.view);return;}
   if(t.dataset.logo){closeMenus();addLogo(t.dataset.logo);return;}
+  if(t.dataset.shape){closeMenus();addShape(t.dataset.shape);return;}
   if(t.dataset.konc){closeMenus();addConcept(t.dataset.konc);return;}
   if(t.dataset.preset){closeMenus();applyPreset(t.dataset.preset);return;}
   const lay=t.closest('[data-lay]');
@@ -973,11 +1062,19 @@ document.addEventListener('click',e=>{
     ui.sel=id; const L=getSel(); const v=placeView(L.place); if(v!==viewKind(ui.view)&&viewAvailable(v)) setView(v); renderPanels();requestRender();return;}
   const L=getSel();
   if(L&&t.dataset.scheme){L.scheme=t.dataset.scheme;if(L.scheme==='custom'){const [a,b]=colors(Object.assign({},L,{scheme:'auto'}),curColor());L.colA=L.colA||a;L.colB=L.colB||b;}commit();return;}
-  if(L&&t.dataset.pal){if(e.shiftKey)L.colB=t.dataset.pal;else L.colA=t.dataset.pal;commit();return;}
+  if(L&&t.dataset.ct){ui.colTarget=t.dataset.ct;renderProps();return;}
+  if(L&&t.dataset.pal){setLayerColor(L,t.dataset.pal);return;}
+  if(t.dataset.savecol){const a=mojeBarvy().filter(h=>h.toLowerCase()!==t.dataset.savecol.toLowerCase());a.unshift(t.dataset.savecol);ulozBarvy(a);renderProps();toast('Barva uložena do Moje');return;}
   if(L&&t.dataset.tech){L.tech=t.dataset.tech;commit();return;}
   if(L&&t.dataset.w){L.w=+t.dataset.w;commit();return;}
   if(L&&t.dataset.al){const p=places()[L.place];if(t.dataset.al==='cx')L.x=0;else if(t.dataset.al==='def'){L.x=p.def.x;L.y=p.def.y;}else{const [x0,y0,x1,y1]=p.box;const n=natural(L,curColor());const ar=n.h/n.w;L.w=Math.min(x1-x0,(y1-y0)/ar)*.98;L.x=(x0+x1)/2;L.y=y0+L.w*ar/2+.1;L.rot=0;}commit();return;}
 });
+function setLayerColor(L,h){
+  if(L.scheme!=='custom'){const [a,b]=colors(L,curColor());L.colA=a;L.colB=b;L.scheme='custom';}
+  if(ui.colTarget==='B') L.colB=h; else L.colA=h;
+  commit();renderProps();
+}
+document.addEventListener('contextmenu',e=>{const b=e.target.closest('[data-moje]');if(!b)return;e.preventDefault();ulozBarvy(mojeBarvy().filter(h=>h.toLowerCase()!==b.dataset.pal.toLowerCase()));renderProps();toast('Barva smazána');});
 document.addEventListener('input',e=>{
   const L=getSel(); if(!L) return; const id=e.target.id; const v=e.target.value;
   const num=parseFloat(String(v).replace(',','.'));
@@ -986,11 +1083,16 @@ document.addEventListener('input',e=>{
   else if(id==='p-w'&&!isNaN(num)&&num>=.5){L.w=Math.min(num,80);commit(true);renderProps(true);}
   else if(id==='p-rot'&&!isNaN(num)){L.rot=clamp(num,-180,180);commit(true);renderProps(true);}
   else if(id==='p-rotr'){L.rot=+v;commit(true);renderProps(true);}
-  else if(id==='p-text'){L.text=v;commit(true);renderLayersOnly();}
+  else if(id==='p-text'){const n0=natural(L,curColor()),k=L.w/n0.w,w0=L.w;L.text=v;const n1=natural(L,curColor());L.w=Math.max(.2,n1.w*k);
+    const d=(L.w-w0)/2,r=L.rot*Math.PI/180; if(L.align!=='center'){const sgn=L.align==='right'?-1:1;L.x+=sgn*d*Math.cos(r);L.y+=sgn*d*Math.sin(r);}
+    commit(true);renderLayersOnly();renderProps(true);}
+  else if(id==='p-cpick'){setLayerColorSoft(L,v);}
+  else if(id==='p-sh'&&!isNaN(num)&&num>0){L.h=num;commit(true);renderProps(true);}
   else if(id==='p-ls'&&!isNaN(num)){L.ls=num;commit(true);}
   else if(id==='p-ca'){L.colA=v;commit(true);}
   else if(id==='p-cb'){L.colB=v;commit(true);}
 });
+function setLayerColorSoft(L,h){if(L.scheme!=='custom'){const [a,b]=colors(L,curColor());L.colA=a;L.colB=b;L.scheme='custom';}if(ui.colTarget==='B')L.colB=h;else L.colA=h;commit(true);}
 function renderLayersOnly(){renderLayers();renderWarns();}
 document.addEventListener('change',e=>{
   const L=getSel(); const id=e.target.id; const v=e.target.value;
@@ -998,14 +1100,17 @@ document.addEventListener('change',e=>{
   if(!L) return;
   if(id==='p-place'){const p=places()[v];L.place=v;L.x=p.def.x;L.y=p.def.y;if(L.w>(p.box[2]-p.box[0]))L.w=p.def.w;if(v==='rukav-l'&&L.type==='logo'&&L.variant==='symbol')L.rot=-90;else if(v!=='rukav-l'&&Math.abs(L.rot)===90)L.rot=0;commit();renderProps();const pv=p.view;if(pv!==viewKind(ui.view)&&viewAvailable(pv))setView(pv);}
   else if(id==='p-font'){L.font=v;document.fonts.load(`${L.weight||400} 40px "${v}"`).then(()=>{commit();});}
-  else if(id==='p-weight'){L.weight=+v;commit();}
+  else if(id==='p-weight'){const n0=natural(L,curColor()),k=L.w/n0.w;L.weight=+v;L.w=natural(L,curColor()).w*k;commit();}
   else if(id==='p-align'){L.align=v;commit();}
-  else if(id==='p-tint'){L.tint=e.target.checked;if(L.tint&&L.scheme==='auto')L.scheme='koral';commit();renderProps();}
+  else if(id==='p-tint'){L.tint=e.target.checked;if(L.tint&&L.scheme==='auto'&&L.type!=='concept')L.scheme='koral';commit();renderProps();}
+  else if(id==='p-kind'){L.kind=v;if(v!=='line')L.dash=false;if(v==='line'&&L.h>1)L.h=.1;commit();renderProps();}
+  else if(id==='p-dash'){L.dash=e.target.checked;commit();renderProps();}
+  else if(id==='p-cpick'){commit();renderProps();}
 });
 // menu
 function closeMenus(except){$$('.dd').forEach(d=>{if(d!==except)d.hidden=true;});}
 function toggleMenu(btn,dd){btn.addEventListener('click',e=>{e.stopPropagation();const open=dd.hidden;closeMenus();dd.hidden=!open;});}
-toggleMenu($('#b-file'),$('#dd-file'));toggleMenu($('#b-export'),$('#dd-export'));toggleMenu($('#b-addlogo'),$('#dd-logo'));toggleMenu($('#b-addkonc'),$('#dd-konc'));toggleMenu($('#b-preset'),$('#dd-preset'));
+toggleMenu($('#b-file'),$('#dd-file'));toggleMenu($('#b-export'),$('#dd-export'));toggleMenu($('#b-addlogo'),$('#dd-logo'));toggleMenu($('#b-addkonc'),$('#dd-konc'));toggleMenu($('#b-preset'),$('#dd-preset'));toggleMenu($('#b-addshape'),$('#dd-shape'));
 $('#dd-konc').innerHTML=Object.entries(KSH.konc).map(([k,v])=>`<button data-konc="${k}">${v.koncept} · ${v.nazev} — ${({front:'hruď',back:'záda',sleeve:'rukáv'})[v.misto]}<small>${v.popis}</small></button>`).join('');
 $('#dd-preset').innerHTML=PRESETS.map(p=>`<button data-preset="${p[0]}">${p[1]}<small>${p[2]}</small></button>`).join('');
 $('#b-addtext').addEventListener('click',addText);
@@ -1166,10 +1271,13 @@ let toastT=null;function toast(t){const el=$('#toast');el.textContent=t;el.hidde
   D=loadPersisted()||defaultDesign();
   let had=false;try{had=!!localStorage.getItem(LS);}catch(e){}
   if(!D.layers.length&&!had){D.layers=PRESETS[0][3]();}
+
   lastSnap=snapshot();
   await Promise.all(FONTS.map(f=>document.fonts.load(`400 40px "${f}"`))).catch(()=>{});
   await document.fonts.load('500 40px "JetBrains Mono"').catch(()=>{});
   natCtx.font='10px VT323';
+  const hm=location.hash.match(/sablona=([\w-]+)/); // odkaz index.html#sablona=E otevře šablonu
+  if(hm&&PRESETS.some(q=>q[0]===hm[1])){if(D.layers.length)hist.past.push(snapshot());const pr=PRESETS.find(q=>q[0]===hm[1]);D.layers=pr[3]();D.name=pr[1];lastSnap=snapshot();history.replaceState(null,'',location.pathname);}
   for(const k of Object.values(KSH.konc)){getImg(k.dark);getImg(k.light);}
   renderPanels();
   await showView(ui.view);

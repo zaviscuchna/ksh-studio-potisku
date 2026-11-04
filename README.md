@@ -7,7 +7,9 @@ Editor potisku týmových mikin KSH Partners na mikinách Malfini. Běží celý
 ## Co v něm jde
 - **Mikina:** 6 modelů Malfini (431 Vibe Hoodie, 430 Vibe Crew, 420 Moon, 422 Chill, 428 Cloud GOTS, 413 Cape), 61 barev, u každého gramáž, materiál, střih a tabulka rozměrů.
 - **Pohledy:** předek, záda, levý rukáv, model zepředu a zezadu. Kolečko myši = zoom, tažení prázdného místa = posun.
-- **Vrstvy:** logo KSH (klíček, nápis, logo celé), text (VT323, JetBrains Mono, Inter Tight, Permanent Marker), vlastní obrázek (PNG, JPG, SVG, WebP), koncepty A–D, šablony. Tažením posuneš, rohy = velikost, korálový bod = otočení. Rozměry v cm od středu a od švu u krku.
+- **Vrstvy:** logo KSH (klíček, nápis, logo celé), logo KraKrám (i powered by KSH), tvary (obdélník, kruh, čára, tečkovaná čára), text (VT323, JetBrains Mono, Inter Tight, Permanent Marker), vlastní obrázek (PNG, JPG, SVG, WebP), koncepty A–D, šablony. Tažením posuneš, rohy = velikost, korálový bod = otočení. Rozměry v cm od středu a od švu u krku.
+- **Paleta:** barvy KSH a KraKrám nahoře, vlastní barvy se ukládají do „Moje“ (pravý klik = smazat). Přebarvit jde i obrázek nebo koncept.
+- **Šablona E** (KSH + KraKrám · Lineup) je složená z vrstev: každý text jde přepsat nebo smazat, velikost písma zůstává.
 - **Stěna barev:** návrh na všech barvách všech modelů najednou, s přepínáním barev loga.
 - **Kontrola tisku:** přesahy, malé písmo, limity výšivky, počet sít u sítotisku.
 - **Export:** PNG pohledu, PNG všech pohledů, tisková data 300 dpi, zadání pro tiskárnu s počty kusů.
