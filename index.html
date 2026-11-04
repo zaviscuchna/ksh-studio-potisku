@@ -100,6 +100,13 @@ details summary{cursor:pointer;font-weight:600;font-size:12.5px}
 .btn:hover{transform:translate(-1px,-1px);box-shadow:3px 3px 0 var(--ink)}
 .btn:focus-visible{outline:2px solid var(--coral);outline-offset:2px}
 .btn.wide{grid-column:1/-1}
+.btn.pri{background:var(--coral)}
+.btn:disabled{opacity:.45;pointer-events:none}
+.pk-lead{margin:0;font-size:13.5px;line-height:1.45}
+.pk{margin:0;padding:0;list-style:none;display:grid;gap:4px;font-size:13px}
+.pk li{border:1.5px solid var(--line);background:#fff;padding:6px 9px}
+.pk li.bad{border-color:var(--coral-d);color:var(--coral-d)}
+details summary{cursor:pointer;font-weight:600;margin-bottom:6px}
 .layers{display:grid;gap:4px}
 .lay{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:6px;align-items:center;padding:5px 6px;border:1.5px solid transparent;cursor:pointer}
 .lay:hover{background:var(--panel2)}
@@ -167,10 +174,9 @@ pre.brief{white-space:pre-wrap;background:#fff;border:1.5px solid var(--line);pa
       </div></div>
     <div class="menu"><button class="tb pri" id="b-export" aria-haspopup="true">Export ▾</button>
       <div class="dd" id="dd-export" hidden>
+        <button data-act="pack"><b>Balíček pro tisk…</b><small>ZIP pro tiskárnu i grafika: PDF + SVG 1 : 1, PNG 300 dpi, technický list</small></button>
         <button data-act="png">PNG tohoto pohledu<small>2× rozlišení fotky, bez vodítek</small></button>
         <button data-act="sheet">PNG všech pohledů<small>předek, záda, rukáv a model vedle sebe</small></button>
-        <button data-act="print">Tisková data 300 dpi<small>PNG pro každé místo potisku zvlášť</small></button>
-        <button data-act="brief">Zadání pro tiskárnu…<small>text s rozměry, barvami a počty kusů</small></button>
       </div></div>
   </header>
 
@@ -255,13 +261,15 @@ pre.brief{white-space:pre-wrap;background:#fff;border:1.5px solid var(--line);pa
 </div>
 
 <div class="modal" id="m-brief" hidden role="dialog" aria-modal="true" aria-labelledby="mb-t">
-  <div class="mbox"><h3 id="mb-t">Zadání pro tiskárnu <button class="ib" data-close style="border-color:#4a4642;color:#f3eee6;background:transparent">×</button></h3>
+  <div class="mbox"><h3 id="mb-t">Balíček pro tisk <button class="ib" data-close aria-label="Zavřít" style="border-color:#4a4642;color:#f3eee6;background:transparent">×</button></h3>
     <div class="mb">
+      <p class="pk-lead">Jeden ZIP, který jde rovnou tiskárně nebo grafikovi: <b>PDF a SVG ve skutečné velikosti</b> (vektor, písmo převedené do křivek), <b>PNG 300 dpi</b> s průhledným pozadím a <b>technický list</b> s rozměry, umístěním od HPS a barvami.</p>
+      <ul class="pk" id="pk-list"></ul>
       <div><b>Počty kusů podle velikostí</b><div class="qty" id="qty" style="margin-top:6px"></div></div>
-      <label class="f">Poznámka<textarea id="b-note" placeholder="např. termín, kontakt, 1 kus nejdřív na zkoušku"></textarea></label>
-      <pre class="brief" id="brief"></pre>
+      <label class="f">Poznámka do technického listu<textarea id="b-note" placeholder="např. termín, kontakt"></textarea></label>
+      <details><summary>Text do e-mailu</summary><pre class="brief" id="brief"></pre></details>
     </div>
-    <div class="mf"><button class="btn" id="b-copy">Kopírovat text</button><button class="btn" id="b-txt">Stáhnout .txt</button><button class="btn" data-close>Zavřít</button></div>
+    <div class="mf"><button class="btn" id="b-copy">Kopírovat text</button><button class="btn" id="b-sheet">Jen technický list (.pdf)</button><button class="btn pri" id="b-zip">Stáhnout balíček (.zip)</button></div>
   </div>
 </div>
 <div class="toast" id="toast" hidden></div>
@@ -270,6 +278,7 @@ pre.brief{white-space:pre-wrap;background:#fff;border:1.5px solid var(--line);pa
 // ---------- globální úložiště podkladů (plní ho assets/*.js) ----------
 window.KSH = {meta:null, logo:null, konc:null, model:null, photos:{}, _wait:{},
   setMeta(m){this.meta=m}, setLogo(l){this.logo=l}, setKoncepty(k){this.konc=k}, setModel(m){this.model=m},
+  setTisk(t){this.tisk=t}, setTiskKonc(t){this.tiskKonc=t}, // assets/tisk*.js — načtou se až při exportu
   addPhotos(kod,b){this.photos[kod]=b; (this._wait[kod]||[]).forEach(f=>f()); delete this._wait[kod];}
 };
 </script>
@@ -286,8 +295,8 @@ const KK_LES='#4A8B80', KK_LES_D='#2D6B62', KK_MATA='#B8DDD8', KK_KREM='#F7F4EF'
 const PAL_SKUPINY=[['KSH',[['Korál',KORAL],['Inkoust',INK],['Krém',KREM]]],
   ['KraKrám',[['Lesní',KK_LES],['Tmavě lesní',KK_LES_D],['Mátová',KK_MATA],['Krém',KK_KREM],['Inkoust',KK_INK]]],
   ['Základ',[['Bílá',BILA],['Černá','#000000'],['Šedá','#8a8580']]]];
-const PAL_LS='ksh-studio-paleta';
-function mojeBarvy(){try{return JSON.parse(localStorage.getItem(PAL_LS)||'[]');}catch(e){return [];}}
+const PAL_LS='ksh-studio-paleta', HEX6=/^#[0-9a-f]{6}$/i;
+function mojeBarvy(){try{const a=JSON.parse(localStorage.getItem(PAL_LS)||'[]');return Array.isArray(a)?a.filter(h=>HEX6.test(h)):[];}catch(e){return [];}}
 function ulozBarvy(a){try{localStorage.setItem(PAL_LS,JSON.stringify(a.slice(0,24)));}catch(e){}}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -339,6 +348,31 @@ function defaultDesign(){
 function curModel(){return MODELS[D.model]}
 function curColor(){const m=curModel();return m.colors.find(c=>c.code===D.color)||m.colors[0]}
 function places(){return MISTA(curModel().typ)}
+// kontrola návrhu z cizího souboru / prohlížeče / repa: jen známé hodnoty, čísla jako čísla, barvy jako #rrggbb
+const LOGO_VARIANTS=['symbol','wordmark','lockup','stack','krakram','krakram-ksh'];
+function cleanDesign(o){
+  if(!o||typeof o!=='object'||!MODELS[o.model]||!Array.isArray(o.layers)) return null;
+  const num=(v,d)=>{v=+v;return Number.isFinite(v)?v:d;}, pick=(v,arr,d)=>arr.includes(v)?v:d, col=(v,d)=>HEX6.test(v)?v:d;
+  const out=defaultDesign(), m=MODELS[o.model];
+  out.name=String(o.name??out.name).slice(0,120); out.model=m.kod; out.color=m.colors.some(c=>c.code===o.color)?o.color:m.colors[0].code;
+  if(o.assets&&typeof o.assets==='object') for(const [k,a] of Object.entries(o.assets))
+    if(a&&typeof a.src==='string'&&/^data:image\/(png|jpeg|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=]+$/.test(a.src))
+      out.assets[String(k).replace(/[^\w-]/g,'')]={src:a.src,name:String(a.name||'Obrázek').slice(0,80),w:Math.max(1,num(a.w,1000)),h:Math.max(1,num(a.h,1000))};
+  const PK=Object.keys(MISTA('hood'));
+  out.layers=o.layers.filter(L=>L&&typeof L==='object'&&['logo','text','image','concept','shape'].includes(L.type)).map(L=>{
+    const c={id:String(L.id||'').replace(/[^\w-]/g,'').slice(0,24)||uid(),type:L.type,place:pick(L.place,PK,'hrud-s'),
+      x:clamp(num(L.x,0),-80,80),y:clamp(num(L.y,20),-40,120),w:clamp(num(L.w,10),.05,200),rot:clamp(num(L.rot,0),-360,360),hidden:!!L.hidden,
+      tech:pick(L.tech,Object.keys(TECH),'dtf'),scheme:pick(L.scheme,SCHEMES.map(q=>q[0]),'auto'),colA:col(L.colA,KORAL),colB:col(L.colB,KREM)};
+    if(L.type==='logo') c.variant=pick(L.variant,LOGO_VARIANTS,'symbol');
+    if(L.type==='text') Object.assign(c,{text:String(L.text??'').slice(0,4000),font:pick(L.font,FONTS,'Inter Tight'),weight:pick(+L.weight,[100,200,300,400,500,600,700,800,900],400),
+      ls:clamp(num(L.ls,0),-1,5),lh:clamp(num(L.lh,1.15),.5,5),align:pick(L.align,['left','center','right'],'left'),textUses:pick(L.textUses,['A','B'],'B')});
+    if(L.type==='shape') Object.assign(c,{kind:pick(L.kind,['rect','ellipse','line'],'rect'),h:clamp(num(L.h,1),.02,200),dash:!!L.dash});
+    if(L.type==='image') Object.assign(c,{asset:String(L.asset||'').replace(/[^\w-]/g,''),tint:!!L.tint});
+    if(L.type==='concept') Object.assign(c,{key:String(L.key||''),tint:!!L.tint});
+    return c;
+  }).filter(L=>(L.type!=='image'||out.assets[L.asset])&&(L.type!=='concept'||Object.hasOwn(KSH.konc,L.key)));
+  return out;
+}
 
 // ---------- vrstvy ----------
 function newLayer(type,extra={}){
@@ -395,7 +429,7 @@ function tinted(im,color,w,h){
   tintCache.set(key,t); if(tintCache.size>60) tintCache.delete(tintCache.keys().next().value); return t;
 }
 function textMetrics(L){
-  const c=natCtx; const fs=100; c.font=`${L.weight||400} ${fs}px "${L.font}"`;
+  const c=natCtx; const fs=100; c.font=`${fw(L)} ${fs}px "${L.font}"`;
   if('letterSpacing' in c) c.letterSpacing=((L.ls||0)*fs)+'px';
   const lines=(L.text||' ').split('\n');
   const w=Math.max(1,...lines.map(t=>c.measureText(t).width));
@@ -453,7 +487,7 @@ function drawLayerContent(c,L,col,override){
   }
   if(L.type==='text'){
     const m=textMetrics(L);
-    c.save();c.font=`${L.weight||400} ${m.fs}px "${L.font}"`;if('letterSpacing' in c)c.letterSpacing=((L.ls||0)*m.fs)+'px';
+    c.save();c.font=`${fw(L)} ${m.fs}px "${L.font}"`;if('letterSpacing' in c)c.letterSpacing=((L.ls||0)*m.fs)+'px';
     c.fillStyle=(L.scheme==='custom')?L.colA:(colors(L,col,override)[L.textUses==='A'?0:1]);
     c.textBaseline='alphabetic';
     m.lines.forEach((t,i)=>{let x=0;const tw=c.measureText(t).width;if(L.align==='center')x=(m.w-tw)/2;else if(L.align==='right')x=m.w-tw;c.fillText(t,x,i*m.lh+m.fs*.86);});
@@ -806,7 +840,7 @@ function commit(coalesce=false){
   hist._coalesce=coalesce;hist._t=Date.now();lastSnap=now;persist();renderPanels();requestRender();if(ui.mode==='wall') scheduleWall();
 }
 function trimHist(){if(hist.past.length>120) hist.past.shift();}
-function restore(json){const o=JSON.parse(json);D.name=o.name;D.model=o.model;D.color=o.color;D.layers=o.layers;lastSnap=json;if(ui.sel&&!D.layers.find(l=>l.id===ui.sel))ui.sel=null;persist();applyGarment();}
+function restore(json){const o=cleanDesign(Object.assign(JSON.parse(json),{assets:D.assets}));if(!o)return;D.name=o.name;D.model=o.model;D.color=o.color;D.layers=o.layers;lastSnap=json;if(ui.sel&&!D.layers.find(l=>l.id===ui.sel))ui.sel=null;persist();applyGarment();}
 function undo(){if(!hist.past.length) return;hist.future.push(snapshot());restore(hist.past.pop());toast('Zpět');}
 function redo(){if(!hist.future.length) return;hist.past.push(snapshot());restore(hist.future.pop());toast('Znovu');}
 const LS='ksh-studio-v1';
@@ -815,7 +849,7 @@ function persist(){
     try{localStorage.setItem(LS,JSON.stringify(Object.assign({},D,{assets:{}})));toast('Obrázky jsou moc velké na automatické uložení — ulož návrh do souboru');}catch(e2){}
   }
 }
-function loadPersisted(){try{const s=localStorage.getItem(LS);if(s){const o=JSON.parse(s);if(o&&o.layers&&MODELS[o.model]) return Object.assign(defaultDesign(),o);}}catch(e){} return null;}
+function loadPersisted(){try{const s=localStorage.getItem(LS);if(s){const o=cleanDesign(JSON.parse(s));if(o) return o;}}catch(e){} return null;}
 
 // ---------- operace s vrstvami ----------
 function getSel(){return D.layers.find(l=>l.id===ui.sel)||null}
@@ -984,23 +1018,23 @@ function renderProps(soft=false){
   if(!two) ui.colTarget='A';
   const [cA,cB]=colors(L,curColor());
   const cur=ui.colTarget==='B'?cB:cA;
-  const sw=(h,n,extra='')=>`<button class="cdot" data-pal="${h}" title="${n} ${h}" aria-pressed="${cur.toLowerCase()===h.toLowerCase()}" style="background:${h}" ${extra}></button>`;
+  const sw=(h,n,extra='')=>`<button class="cdot" data-pal="${esc(h)}" title="${esc(n)} ${esc(h)}" aria-pressed="${cur.toLowerCase()===h.toLowerCase()}" style="background:${esc(h)}" ${extra}></button>`;
   const moje=mojeBarvy();
   const colorPick=`
-    ${two?`<div class="opts" role="group" aria-label="Kterou barvu měnit"><button class="opt" data-ct="A" aria-pressed="${ui.colTarget!=='B'}"><i class="sw" style="display:inline-block;width:11px;height:11px;border:1px solid #1e1e1e;background:${cA};vertical-align:-1px"></i> klíček + PARTNERS</button><button class="opt" data-ct="B" aria-pressed="${ui.colTarget==='B'}"><i style="display:inline-block;width:11px;height:11px;border:1px solid #1e1e1e;background:${cB};vertical-align:-1px"></i> nápis KSH</button></div>`:''}
+    ${two?`<div class="opts" role="group" aria-label="Kterou barvu měnit"><button class="opt" data-ct="A" aria-pressed="${ui.colTarget!=='B'}"><i class="sw" style="display:inline-block;width:11px;height:11px;border:1px solid #1e1e1e;background:${esc(cA)};vertical-align:-1px"></i> klíček + PARTNERS</button><button class="opt" data-ct="B" aria-pressed="${ui.colTarget==='B'}"><i style="display:inline-block;width:11px;height:11px;border:1px solid #1e1e1e;background:${esc(cB)};vertical-align:-1px"></i> nápis KSH</button></div>`:''}
     ${PAL_SKUPINY.map(([g,arr])=>`<div class="cdots"><span style="width:58px;font-size:11.5px;color:var(--muted)">${g}</span>${arr.map(([n,h])=>sw(h,n)).join('')}</div>`).join('')}
     <div class="cdots"><span style="width:58px;font-size:11.5px;color:var(--muted)">Moje</span>${moje.map(h=>sw(h,'Moje barva','data-moje="1"')).join('')||'<small style="color:var(--muted)">zatím nic</small>'}</div>
-    <div class="row2"><label class="f">Vlastní barva<input type="color" id="p-cpick" value="${cur}"></label><div style="display:grid;align-content:end"><button class="opt" data-savecol="${cur}" title="Přidat aktuální barvu do Moje barvy">+ uložit do Moje</button></div></div>
+    <div class="row2"><label class="f">Vlastní barva<input type="color" id="p-cpick" value="${esc(cur)}"></label><div style="display:grid;align-content:end"><button class="opt" data-savecol="${esc(cur)}" title="Přidat aktuální barvu do Moje barvy">+ uložit do Moje</button></div></div>
     <small style="color:var(--muted)">Pravý klik na barvu v „Moje“ ji smaže.</small>`;
   let typeProps='';
   if(L.type==='text') typeProps=`<label class="f">Text<textarea id="p-text">${esc(L.text)}</textarea></label>
     <div class="row2"><label class="f">Písmo<select id="p-font">${FONTS.map(f=>`<option ${f===L.font?'selected':''}>${f}</option>`).join('')}</select></label>
-    <label class="f">Tloušťka<select id="p-weight">${[300,400,500,600,700,800].map(w=>`<option value="${w}" ${+L.weight===w?'selected':''}>${w}</option>`).join('')}</select></label></div>
-    <div class="row2"><label class="f">Prostrkání (em)<input type="number" id="p-ls" step="0.05" value="${L.ls||0}"></label>
+    <label class="f">Tloušťka<select id="p-weight" ${SINGLE_W.has(L.font)?'disabled title="Toto písmo má jen jednu tloušťku"':''}>${[300,400,500,600,700,800].map(w=>`<option value="${w}" ${+L.weight===w?'selected':''}>${w}</option>`).join('')}</select></label></div>
+    <div class="row2"><label class="f">Prostrkání (em)<input type="number" id="p-ls" step="0.05" value="${+L.ls||0}"></label>
     <label class="f">Zarovnání<select id="p-align">${[['left','vlevo'],['center','na střed'],['right','vpravo']].map(([v,l])=>`<option value="${v}" ${L.align===v?'selected':''}>${l}</option>`).join('')}</select></label></div>`;
   if(L.type==='image'||L.type==='concept') typeProps=`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="p-tint" ${L.tint?'checked':''}> Přebarvit na jednu barvu</label>`;
   if(L.type==='shape') typeProps=`<div class="row2"><label class="f">Tvar<select id="p-kind">${[['rect','obdélník'],['ellipse','kruh / elipsa'],['line','čára']].map(([v,l])=>`<option value="${v}" ${L.kind===v?'selected':''}>${l}</option>`).join('')}</select></label>
-    <label class="f">${L.kind==='line'?'Tloušťka cm':'Výška cm'}<input type="number" id="p-sh" step="0.05" min="0.05" value="${L.h}"></label></div>
+    <label class="f">${L.kind==='line'?'Tloušťka cm':'Výška cm'}<input type="number" id="p-sh" step="0.05" min="0.05" value="${+L.h||.1}"></label></div>
     ${L.kind==='line'?`<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="p-dash" ${L.dash?'checked':''}> Tečkovaná</label>`:''}`;
   const showColors=L.type==='logo'||L.type==='text'||L.type==='shape'||((L.type==='image'||L.type==='concept')&&L.tint);
   box.innerHTML=`
@@ -1019,24 +1053,28 @@ function renderProps(soft=false){
     <div><div style="font-size:11.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Technika</div>
       <div class="opts">${Object.entries(TECH).map(([k,l])=>`<button class="opt" data-tech="${k}" aria-pressed="${L.tech===k}">${l}</button>`).join('')}</div></div>`;
 }
-function renderWarns(){
+function computeWarns(){ // [třída, text, místo]
   const out=[];const pl=places();const m=curModel();const col=curColor();
-  for(const L of D.layers){ if(L.hidden) continue;
+  for(const L of D.layers){ if(L.hidden) continue; const _o={push:a=>out.push([a[0],a[1],L.place])};
     const p=pl[L.place]; const sz=layerSizeCm(L); const nm=layerName(L);
-    if(!p){out.push(['',`${nm}: neznámé místo`]);continue;}
+    if(!p){_o.push(['',`${nm}: neznámé místo`]);continue;}
     const [x0,y0,x1,y1]=p.box;
     // obálka po otočení
     const r=L.rot*Math.PI/180, bw=Math.abs(sz.w*Math.cos(r))+Math.abs(sz.h*Math.sin(r)), bh=Math.abs(sz.w*Math.sin(r))+Math.abs(sz.h*Math.cos(r));
-    if(L.x-bw/2<x0-.3||L.x+bw/2>x1+.3||L.y-bh/2<y0-.3||L.y+bh/2>y1+.3) out.push(['',`${nm}: přesahuje doporučenou plochu (${p.label}, max ${fmt(x1-x0)} × ${fmt(y1-y0)} cm)`]);
-    if(p.view==='side'&&!m.colors[0].views.includes('side')) out.push(['',`${nm}: u modelu ${m.kod} chybí fotka z boku, rukáv nejde ukázat`]);
-    if(L.place==='zada-krk'&&m.typ!=='crew') out.push(['',`${nm}: pod límcem vzadu bude u mikiny s kapucí schované`]);
-    if(L.tech==='vysivka'&&(L.type==='concept'||L.type==='image')) out.push(['',`${nm}: výšivka zvládne jen jednoduché plochy, tečky a jemné detaily ne`]);
-    if(L.tech==='vysivka'&&sz.w>14) out.push(['',`${nm}: výšivka ${fmt(sz.w)} cm = hodně stehů, bude drahá`]);
-    if(L.type==='text'){const tm=textMetrics(L);const capCm=sz.h/tm.lines.length*.62;if(capCm<(L.tech==='vysivka'?.6:.4)) out.push(['',`${nm}: písmo je malé (≈${fmt(capCm*10,0)} mm), ${L.tech==='vysivka'?'výšivka potřebuje aspoň 6 mm':'DTF potřebuje aspoň 4 mm'}`]);}
-    if(sz.w>32||sz.h>42) out.push(['',`${nm}: ${fmt(sz.w)} × ${fmt(sz.h)} cm je víc než A3+, ne každá tiskárna to zvládne`]);
+    if(L.x-bw/2<x0-.3||L.x+bw/2>x1+.3||L.y-bh/2<y0-.3||L.y+bh/2>y1+.3) _o.push(['',`${nm}: přesahuje doporučenou plochu (${p.label}, max ${fmt(x1-x0)} × ${fmt(y1-y0)} cm)`]);
+    if(p.view==='side'&&!m.colors[0].views.includes('side')) _o.push(['',`${nm}: u modelu ${m.kod} chybí fotka z boku, rukáv nejde ukázat`]);
+    if(L.place==='zada-krk'&&m.typ!=='crew') _o.push(['',`${nm}: pod límcem vzadu bude u mikiny s kapucí schované`]);
+    if(L.tech==='vysivka'&&(L.type==='concept'||L.type==='image')) _o.push(['',`${nm}: výšivka zvládne jen jednoduché plochy, tečky a jemné detaily ne`]);
+    if(L.tech==='vysivka'&&sz.w>14) _o.push(['',`${nm}: výšivka ${fmt(sz.w)} cm = hodně stehů, bude drahá`]);
+    if(L.type==='text'){const tm=textMetrics(L);const capCm=sz.h/tm.lines.length*.62;if(capCm<(L.tech==='vysivka'?.6:.4)) _o.push(['',`${nm}: písmo je malé (≈${fmt(capCm*10,0)} mm), ${L.tech==='vysivka'?'výšivka potřebuje aspoň 6 mm':'DTF potřebuje aspoň 4 mm'}`]);}
+    if(sz.w>32||sz.h>42) _o.push(['',`${nm}: ${fmt(sz.w)} × ${fmt(sz.h)} cm je víc než A3+, ne každá tiskárna to zvládne`]);
   }
   const sito={};for(const L of D.layers) if(!L.hidden&&L.tech==='sito'){const cs=new Set(colors(L,col).slice(0,L.type==='logo'&&(L.variant==='lockup'||L.variant==='stack')?2:1));(sito[L.place] ||= new Set());cs.forEach(c=>sito[L.place].add(c));}
-  for(const [k,s] of Object.entries(sito)) out.push(['',`${pl[k].label}: sítotisk ${s.size} ${s.size===1?'barva':s.size<5?'barvy':'barev'} = ${s.size} ${s.size===1?'síto':s.size<5?'síta':'sít'}${col.dark?' + podkladová bílá':''}`]);
+  for(const [k,s] of Object.entries(sito)) out.push(['',`${pl[k].label}: sítotisk ${s.size} ${s.size===1?'barva':s.size<5?'barvy':'barev'} = ${s.size} ${s.size===1?'síto':s.size<5?'síta':'sít'}${col.dark?' + podkladová bílá':''}`,k]);
+  return out;
+}
+function renderWarns(){
+  const out=computeWarns();
   if(!out.length) out.push(['ok',D.layers.length?'Všechno se vejde a dá se vyrobit.':'Přidej potisk a tady uvidíš, jestli se dá vyrobit.']);
   $('#warns').innerHTML=out.map(([c,t])=>`<li class="${c}">${esc(t)}</li>`).join('');
 }
@@ -1132,8 +1170,8 @@ async function loadTeam(){
   $('#teamlist').innerHTML=files.map(f=>`<button data-team="${esc(f.soubor)}">${esc(f.nazev||f.soubor)}${f.popis?`<small>${esc(f.popis)}</small>`:''}</button>`).join('');
 }
 $('#teamlist').addEventListener('click',async e=>{const b=e.target.closest('button[data-team]');if(!b)return;e.stopPropagation();closeMenus();
-  try{const r=await fetch('navrhy/'+encodeURIComponent(b.dataset.team),{cache:'no-store'});const o=await r.json();if(!o.layers||!MODELS[o.model])throw 0;
-    hist.past.push(snapshot());D=Object.assign(defaultDesign(),o);ui.sel=null;lastSnap=snapshot();persist();await applyGarment();toast('Načteno: '+(o.name||b.dataset.team));}
+  try{const r=await fetch('navrhy/'+encodeURIComponent(b.dataset.team),{cache:'no-store'});const o=cleanDesign(await r.json());if(!o)throw 0;
+    hist.past.push(snapshot());D=o;ui.sel=null;lastSnap=snapshot();persist();await applyGarment();toast('Načteno: '+(o.name||b.dataset.team));}
   catch(err){toast('Návrh se nepodařilo načíst');}});
 $('#dd-file').addEventListener('click',e=>{const a=e.target.closest('button')?.dataset.act;if(!a)return;closeMenus();
   if(a==='new'){D.layers=[];ui.sel=null;commit();toast('Prázdný návrh');}
@@ -1141,11 +1179,11 @@ $('#dd-file').addEventListener('click',e=>{const a=e.target.closest('button')?.d
   if(a==='save') download(new Blob([JSON.stringify(D,null,1)],{type:'application/json'}),safe(D.name)+'.json');
 });
 $('#f-json').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
-  try{const o=JSON.parse(await f.text());if(!o.layers||!MODELS[o.model]) throw 0;hist.past.push(snapshot());D=Object.assign(defaultDesign(),o);ui.sel=null;lastSnap=snapshot();persist();await applyGarment();toast('Návrh načten');}
+  try{const o=cleanDesign(JSON.parse(await f.text()));if(!o) throw 0;hist.past.push(snapshot());D=o;ui.sel=null;lastSnap=snapshot();persist();await applyGarment();toast('Návrh načten');}
   catch(err){toast('Soubor není návrh ze Studia');}
 });
 $('#dd-export').addEventListener('click',e=>{const a=e.target.closest('button')?.dataset.act;closeMenus();
-  if(a==='png') exportView(); if(a==='sheet') exportSheet(); if(a==='print') exportPrint(); if(a==='brief') openBrief();});
+  if(a==='png') exportView(); if(a==='sheet') exportSheet(); if(a==='pack') openBrief();});
 $('#z-in').addEventListener('click',()=>{const r=stage.getBoundingClientRect();zoomAt(1.25,r.width/2,r.height/2);});
 $('#z-out').addEventListener('click',()=>{const r=stage.getBoundingClientRect();zoomAt(.8,r.width/2,r.height/2);});
 $('#z-fit').addEventListener('click',()=>{fit();requestRender();});
@@ -1210,20 +1248,6 @@ async function exportSheet(){
   let x=pad;cvs.forEach((cv,i)=>{c.drawImage(cv,x,top-10+20,cv.width*sc[i],h);c.font='26px VT323';c.fillStyle='#6c655d';c.fillText(VIEWS.find(q=>q[0]===vs[i])[1],x,top+h+40);x+=cv.width*sc[i]+pad;});
   out.toBlob(b=>download(b,`${safe(D.name)}-${D.model}-${D.color}-vsechny-pohledy.png`),'image/png');toast('PNG se stahuje');
 }
-async function exportPrint(){
-  const PX=300/2.54; const pl=places(); const col=curColor(); let n=0;
-  for(const [k,p] of Object.entries(pl)){
-    const layers=D.layers.filter(L=>!L.hidden&&L.place===k); if(!layers.length) continue;
-    // obálka v cm (souřadnice místa)
-    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
-    const Ms=layers.map(L=>{const nat=natural(L,col);const kk=L.w/nat.w;const M=new DOMMatrix().translate(L.x,L.y).rotate(L.rot).scale(kk).translate(-nat.w/2,-nat.h/2);
-      for(const [a,b] of [[0,0],[nat.w,0],[nat.w,nat.h],[0,nat.h]]){const q=M.transformPoint(new DOMPoint(a,b));x0=Math.min(x0,q.x);y0=Math.min(y0,q.y);x1=Math.max(x1,q.x);y1=Math.max(y1,q.y);}return [L,M];});
-    const w=x1-x0,h=y1-y0; const cv=document.createElement('canvas');cv.width=Math.ceil(w*PX);cv.height=Math.ceil(h*PX);const c=cv.getContext('2d');
-    for(const [L,M] of Ms){c.save();c.setTransform(new DOMMatrix().scale(PX).translate(-x0,-y0).multiply(M));drawLayerContent(c,L,col,null);c.restore();}
-    await new Promise(r=>cv.toBlob(b=>{download(b,`KSH-${k}-${fmt(w)}x${fmt(h)}cm-300dpi.png`.replace(/,/g,'_'));r();},'image/png'));n++;
-  }
-  toast(n?`Staženo ${n}× tisková data (300 dpi)`:'Návrh nemá žádný potisk');
-}
 function briefText(){
   const m=curModel(),col=curColor(),pl=places();
   const q=$$('#qty input').map(i=>[i.dataset.size,+i.value||0]).filter(x=>x[1]>0);const total=q.reduce((a,b)=>a+b[1],0);
@@ -1250,21 +1274,478 @@ function briefText(){
   }
   L.push('Barvy KSH: korál #f0716c · inkoust #1e1e1e · krém #f3eee6. Prosíme o 1 kus na zkoušku (nátisk) před celou sérií.');
   const note=$('#b-note').value.trim(); if(note) L.push('',note);
-  L.push('','Tisková data: PDF/SVG (vektor) a PNG 300 dpi pošleme zvlášť.');
+  L.push('','V příloze je balíček pro tisk: PDF a SVG 1 : 1 (vektor), PNG 300 dpi a technický list.');
   return L.join('\n');
 }
 function openBrief(){
   const m=curModel();const sizes=m.chart.sizes||m.sizes.split('-');
   if(!$('#qty').dataset.model||$('#qty').dataset.model!==m.kod){$('#qty').dataset.model=m.kod;$('#qty').innerHTML=sizes.map(s=>`<label class="f">${s}<input type="number" min="0" value="0" data-size="${s}"></label>`).join('');}
-  $('#brief').textContent=briefText();$('#m-brief').hidden=false;
+  $('#brief').textContent=briefText();$('#m-brief').hidden=false;packSummary();
 }
 function closeModal(){$('#m-brief').hidden=true;}
 $('#m-brief').addEventListener('input',()=>{$('#brief').textContent=briefText();});
 $('#m-brief').addEventListener('click',e=>{if(e.target.closest('[data-close]')||e.target===e.currentTarget)closeModal();});
 $('#b-copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(briefText());toast('Zkopírováno');}catch(err){const r=document.createRange();r.selectNodeContents($('#brief'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Označeno — zkopíruj Cmd+C');}});
-$('#b-txt').addEventListener('click',()=>download(new Blob([briefText()],{type:'text/plain;charset=utf-8'}),`zadani-${safe(D.name)}.txt`));
+$('#b-zip').addEventListener('click',()=>exportPack(false));
+$('#b-sheet').addEventListener('click',()=>exportPack(true));
 
-let toastT=null;function toast(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,1800);}
+// =====================================================================
+// BALÍČEK PRO TISK — PDF + SVG ve skutečné velikosti (vektor, písmo v křivkách),
+// PNG 300 dpi, technický list PDF, náhledy a návrh .json v jednom ZIPu.
+// Všechny výstupy se kreslí ze stejného vektorového popisu (assets/tisk*.js
+// se načtou až při exportu: obrysy písmen, loga a koncepty jako křivky).
+// =====================================================================
+function loadScriptOnce(src){
+  const P=loadScriptOnce.p||(loadScriptOnce.p={});
+  return P[src]||(P[src]=new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=()=>{delete P[src];rej(new Error('chybí '+src));};document.head.appendChild(s);}));
+}
+async function needTisk(){
+  if(!KSH.tisk) await loadScriptOnce('assets/tisk.js');
+  if(!KSH.tiskKonc&&D.layers.some(L=>!L.hidden&&L.type==='concept')) await loadScriptOnce('assets/tisk-koncepty.js');
+}
+// --- cesty: [['M',x,y],['L',x,y],['Q',x1,y1,x,y],['C',x1,y1,x2,y2,x,y],['Z']] ---
+const ARITY={M:2,L:2,Q:4,C:6,Z:0}, pdCache=new Map();
+function pd(d){
+  let r=pdCache.get(d); if(r) return r;
+  r=[]; const tk=d.match(/[MLQCZ]|-?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?/g)||[]; let i=0;
+  while(i<tk.length){const c=tk[i++],n=ARITY[c];if(n===undefined)continue;const s=[c];for(let j=0;j<n;j++)s.push(+tk[i++]);r.push(s);}
+  if(pdCache.size>5000) pdCache.clear(); pdCache.set(d,r); return r;
+}
+function xf(segs,m){const {a,b,c,d,e,f}=m;return segs.map(s=>{if(s[0]==='Z')return s;const o=[s[0]];for(let i=1;i<s.length;i+=2){const x=s[i],y=s[i+1];o.push(a*x+c*y+e,b*x+d*y+f);}return o;});}
+const nf=(v,nd=3)=>{const k=10**nd;const s=String(Math.round(v*k)/k);return s==='-0'?'0':s;};
+function segsD(segs){let s='';for(const g of segs){s+=g[0];for(let i=1;i<g.length;i++)s+=(i>1?' ':'')+nf(g[i]);}return s;}
+const KAPA=.5522847498;
+function ellSegs(cx,cy,rx,ry){const k=KAPA;return [['M',cx+rx,cy],['C',cx+rx,cy+k*ry,cx+k*rx,cy+ry,cx,cy+ry],['C',cx-k*rx,cy+ry,cx-rx,cy+k*ry,cx-rx,cy],
+  ['C',cx-rx,cy-k*ry,cx-k*rx,cy-ry,cx,cy-ry],['C',cx+k*rx,cy-ry,cx+rx,cy-k*ry,cx+rx,cy],['Z']];}
+function rectSegs(x,y,w,h){return [['M',x,y],['L',x+w,y],['L',x+w,y+h],['L',x,y+h],['Z']];}
+function segBounds(segs,bb){ // přesná obálka včetně vyboulení křivek
+  const add=(x,y)=>{if(x<bb[0])bb[0]=x;if(y<bb[1])bb[1]=y;if(x>bb[2])bb[2]=x;if(y>bb[3])bb[3]=y;};
+  const roots=(A,B,C)=>{if(Math.abs(A)<1e-12)return Math.abs(B)<1e-12?[]:[-C/B];const D=B*B-4*A*C;if(D<0)return [];const q=Math.sqrt(D);return [(-B+q)/(2*A),(-B-q)/(2*A)];};
+  let px=0,py=0,sx=0,sy=0;
+  for(const s of segs){const c=s[0];
+    if(c==='M'){px=sx=s[1];py=sy=s[2];add(px,py);}
+    else if(c==='L'){px=s[1];py=s[2];add(px,py);}
+    else if(c==='Q'){const [,x1,y1,x,y]=s;for(const t of [...roots(0,2*(px-2*x1+x),2*(x1-px)),...roots(0,2*(py-2*y1+y),2*(y1-py))]) if(t>0&&t<1){const u=1-t;add(u*u*px+2*u*t*x1+t*t*x,u*u*py+2*u*t*y1+t*t*y);}px=x;py=y;add(px,py);}
+    else if(c==='C'){const [,x1,y1,x2,y2,x,y]=s;const ts=[...roots(-px+3*x1-3*x2+x,2*(px-2*x1+x2),x1-px),...roots(-py+3*y1-3*y2+y,2*(py-2*y1+y2),y1-py)];
+      for(const t of ts) if(t>0&&t<1){const u=1-t;add(u*u*u*px+3*u*u*t*x1+3*u*t*t*x2+t*t*t*x,u*u*u*py+3*u*u*t*y1+3*u*t*t*y2+t*t*t*y);}px=x;py=y;add(px,py);}
+    else if(c==='Z'){px=sx;py=sy;}
+  }
+  return bb;
+}
+// --- písmo jako křivky: pozice znaků měří stejný canvas jako náhled (kerning i prostrkání sedí) ---
+const SINGLE_W=new Set(['VT323','Permanent Marker']);
+function fw(L){return SINGLE_W.has(L.font)?400:(+L.weight||400);}
+const mctx=document.createElement('canvas').getContext('2d');
+let missingGlyphs=new Set();
+function glyphFont(font,weight){
+  const F=KSH.tisk.fonts, ws=Object.keys(F).filter(k=>k.startsWith(font+'|')).map(k=>+k.split('|')[1]);
+  if(!ws.length) throw new Error('chybí obrysy písma '+font);
+  return F[font+'|'+ws.sort((a,b)=>Math.abs(a-weight)-Math.abs(b-weight))[0]];
+}
+function setM(font,weight,fs,ls){mctx.font=`${weight} ${fs}px "${font}"`;if('letterSpacing' in mctx)mctx.letterSpacing=ls+'px';}
+function textVec(str,font,weight,fs,ls,x,base,fill){ // jeden řádek, x = levý okraj, base = účaří
+  const G=glyphFont(font,weight), k=fs/G.upm, segs=[]; let pre='';
+  setM(font,weight,fs,ls);
+  for(const ch of Array.from(str)){
+    pre+=ch; let g=G.g[ch], kk=k;
+    if(!g&&ch.trim()){ // znak v písmu chybí → prohlížeč ho bere z jiného písma; vezmeme ho z našich ostatních
+      for(const f2 of ['Inter Tight','JetBrains Mono','VT323']){const G2=f2!==font&&glyphFont(f2,weight);if(G2&&G2.g[ch]){g=G2.g[ch];kk=fs/G2.upm;break;}}
+      if(!g){missingGlyphs.add(ch);continue;}
+    }
+    if(!g||!g[1]) continue;
+    const xi=mctx.measureText(pre).width-mctx.measureText(ch).width; // začátek znaku i po kerningu s předchozím
+    for(const s of xf(pd(g[1]),{a:kk,b:0,c:0,d:-kk,e:x+xi,f:base})) segs.push(s);
+  }
+  return segs.length?[{k:'path',fill,segs}]:[];
+}
+function tintFull(im,color,w,h){
+  const sc=Math.min(1,6000/Math.max(w,h)), t=document.createElement('canvas');t.width=Math.max(1,Math.round(w*sc));t.height=Math.max(1,Math.round(h*sc));
+  const tc=t.getContext('2d');tc.drawImage(im,0,0,t.width,t.height);tc.globalCompositeOperation='source-in';tc.fillStyle=color;tc.fillRect(0,0,t.width,t.height);return t;
+}
+// vrstva → položky v přirozených jednotkách vrstvy (stejné jako drawLayerContent)
+async function layerVector(L,col){
+  const T=KSH.tisk.logo, [A,B]=colors(L,col,null), out=[];
+  const P=(d,m,fill)=>out.push({k:'path',fill,segs:m?xf(pd(d),m):pd(d)});
+  if(L.type==='logo'){
+    const h=LOGO.wmH,w=LOGO.wmW;
+    if(L.variant==='symbol') P(T.sym,null,A);
+    else if(L.variant==='wordmark') P(T.wm,null,A);
+    else if(L.variant==='lockup'){const k=h*1.25/LOGO.symH,gx=LOGO.symW*k+h*.35;
+      P(T.sym,{a:k,b:0,c:0,d:k,e:0,f:0},A);P(T.wm,{a:1,b:0,c:0,d:1,e:gx,f:0},B);
+      out.push(...textVec('PARTNERS','JetBrains Mono',500,h*.17,h*.085,gx+h*.06,h*1.58,A));}
+    else if(L.variant==='stack'){const symH=h*1.15,k=symH/LOGO.symH,symW=LOGO.symW*k;
+      P(T.sym,{a:k,b:0,c:0,d:k,e:(w-symW)/2,f:0},A);P(T.wm,{a:1,b:0,c:0,d:1,e:0,f:symH+h*.12},B);
+      const fs=h*.2,ls=fs*.62;setM('JetBrains Mono',500,fs,ls);const tw=mctx.measureText('PARTNERS').width-ls;
+      out.push(...textVec('PARTNERS','JetBrains Mono',500,fs,ls,(w-tw)/2,symH+h*.12+h+h*.36,A));}
+    else if(L.variant==='krakram') P(T.kk,null,A);
+    else if(L.variant==='krakram-ksh') P(T.kkKsh,null,A);
+  }
+  else if(L.type==='shape'){
+    const n=natural(L,col);
+    if(L.kind==='ellipse') out.push({k:'path',fill:A,segs:ellSegs(n.w/2,n.h/2,n.w/2,n.h/2)});
+    else if(L.kind==='line'&&L.dash){const r=n.h/2,segs=[];for(let x=r;x<=n.w-r+.01;x+=n.h*2.9)segs.push(...ellSegs(x,r,r,r));out.push({k:'path',fill:A,segs});}
+    else out.push({k:'path',fill:A,segs:rectSegs(0,0,n.w,n.h)});
+  }
+  else if(L.type==='text'){
+    const m=textMetrics(L), fill=(L.scheme==='custom')?L.colA:colors(L,col,null)[L.textUses==='A'?0:1], wt=fw(L), ls=(L.ls||0)*m.fs;
+    m.lines.forEach((t,i)=>{setM(L.font,wt,m.fs,ls);const tw=mctx.measureText(t).width;let x=0;if(L.align==='center')x=(m.w-tw)/2;else if(L.align==='right')x=m.w-tw;
+      out.push(...textVec(t,L.font,wt,m.fs,ls,x,i*m.lh+m.fs*.86,fill));});
+  }
+  else if(L.type==='image'){
+    const a=D.assets[L.asset]; if(a){const im=await loadImage(a.src);const draw=L.tint?tintFull(im,A,a.w,a.h):im;
+      out.push({k:'img',m:new DOMMatrix(),w:a.w,h:a.h,draw,svg:!L.tint&&/^data:image\/svg/.test(a.src),href:L.tint?draw.toDataURL('image/png'):a.src});}
+  }
+  else if(L.type==='concept'){
+    const it=KSH.tiskKonc&&KSH.tiskKonc[L.key]&&KSH.tiskKonc[L.key][col.dark?'dark':'light'];
+    if(it) for(const [f,d] of it) P(d,null,L.tint?A:f);
+  }
+  return out;
+}
+// místo potisku → grafika v mm, počátek vlevo nahoře na skutečném okraji barvy
+async function buildArts(col=curColor()){
+  await needTisk(); missingGlyphs=new Set();
+  const arts=[];
+  for(const [key,p] of Object.entries(places())){
+    const layers=D.layers.filter(L=>!L.hidden&&L.place===key); if(!layers.length) continue;
+    const items=[];
+    for(const L of layers){
+      const nat=natural(L,col), M=new DOMMatrix().translate(L.x,L.y).rotate(L.rot).scale(L.w/nat.w).translate(-nat.w/2,-nat.h/2);
+      for(const it of await layerVector(L,col)){it.L=L;if(it.k==='path')it.segs=xf(it.segs,M);else it.m=M.multiply(it.m);items.push(it);}
+    }
+    const bb=[1e9,1e9,-1e9,-1e9];
+    for(const it of items){
+      if(it.k==='path') segBounds(it.segs,bb);
+      else for(const [x,y] of [[0,0],[it.w,0],[it.w,it.h],[0,it.h]]){const q=it.m.transformPoint(new DOMPoint(x,y));bb[0]=Math.min(bb[0],q.x);bb[1]=Math.min(bb[1],q.y);bb[2]=Math.max(bb[2],q.x);bb[3]=Math.max(bb[3],q.y);}
+    }
+    if(!(bb[2]>bb[0]&&bb[3]>bb[1])) continue;
+    const F={a:10,b:0,c:0,d:10,e:-bb[0]*10,f:-bb[1]*10}, FM=new DOMMatrix([10,0,0,10,-bb[0]*10,-bb[1]*10]);
+    for(const it of items){if(it.k==='path')it.segs=xf(it.segs,F);else it.m=FM.multiply(it.m);}
+    const fills=[...new Set(items.filter(i=>i.k==='path').map(i=>i.fill.toLowerCase()))];
+    arts.push({key,p,layers,items,fills,hasImg:items.some(i=>i.k==='img'),bb:{x0:bb[0],y0:bb[1],x1:bb[2],y1:bb[3]},W:(bb[2]-bb[0])*10,H:(bb[3]-bb[1])*10});
+  }
+  arts.forEach((a,i)=>{a.no=i+1;a.file=`${String(i+1).padStart(2,'0')}-${safe(a.p.label)}-${Math.round(a.W)}x${Math.round(a.H)}mm`;});
+  return arts;
+}
+// --- SVG (mm, 1:1) ---
+function artSVG(art,title){
+  const W=nf(art.W),H=nf(art.H), ids=new Map(); let s=`<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="${W}mm" height="${H}mm" viewBox="0 0 ${W} ${H}">\n<title>${esc(title)}</title>\n`;
+  let cur=null;
+  for(const it of art.items){
+    if(it.L!==cur){if(cur)s+='</g>\n';cur=it.L;const base='vrstva-'+(art.layers.indexOf(cur)+1)+'-'+safe(layerName(cur));const id=ids.has(base)?base+'-'+ids.size:base;ids.set(id,1);s+=`<g id="${id}">\n`;}
+    if(it.k==='path') s+=`<path fill="${it.fill}" d="${segsD(it.segs)}"/>\n`;
+    else s+=`<image width="${nf(it.w)}" height="${nf(it.h)}" preserveAspectRatio="none" transform="matrix(${[it.m.a,it.m.b,it.m.c,it.m.d,it.m.e,it.m.f].map(v=>nf(v,6)).join(' ')})" xlink:href="${it.href}"/>\n`;
+  }
+  if(cur) s+='</g>\n';
+  return s+'</svg>\n';
+}
+// --- PNG 300 dpi s průhledným pozadím (a s dpi v souboru, ať ho programy neotevřou jako 72 dpi) ---
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8,c=0xFFFFFFFF){for(let i=0;i<u8.length;i++)c=CRC_T[(c^u8[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function pngDpi(u8,dpi){
+  const ppm=Math.round(dpi/.0254), ch=new Uint8Array(21), dv=new DataView(ch.buffer);
+  dv.setUint32(0,9);ch.set([112,72,89,115],4);dv.setUint32(8,ppm);dv.setUint32(12,ppm);ch[16]=1;dv.setUint32(17,crc32(ch.subarray(4,17)));
+  const out=new Uint8Array(u8.length+21);out.set(u8.subarray(0,33));out.set(ch,33);out.set(u8.subarray(33),54);return out; // hned za IHDR
+}
+async function canvasBytes(cv,type='image/png',q){const b=await new Promise((res,rej)=>cv.toBlob(x=>x?res(x):rej(new Error('obrázek je moc velký')),type,q));return new Uint8Array(await b.arrayBuffer());}
+async function artPNG(art,dpi=300){
+  let s=dpi/25.4; const big=Math.max(art.W,art.H)*s; if(big>16000) s*=16000/big;
+  const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(art.W*s));cv.height=Math.max(1,Math.round(art.H*s));const c=cv.getContext('2d');
+  c.imageSmoothingQuality='high';
+  for(const it of art.items){
+    if(it.k==='path'){c.setTransform(s,0,0,s,0,0);c.fillStyle=it.fill;c.fill(new Path2D(segsD(it.segs)));}
+    else{c.setTransform(new DOMMatrix([s,0,0,s,0,0]).multiply(it.m));c.drawImage(it.draw,0,0,it.w,it.h);}
+  }
+  return pngDpi(await canvasBytes(cv),Math.round(s*25.4));
+}
+// --- PDF (vlastní zapisovač: cesty v mm, obrázky JPEG/Flate se SMask) ---
+async function deflate(u8){const s=new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate'));return new Uint8Array(await new Response(s).arrayBuffer());}
+function pdfStr(s){let h='FEFF';for(let i=0;i<s.length;i++)h+=s.charCodeAt(i).toString(16).padStart(4,'0').toUpperCase();return '<'+h+'>';}
+function newPage(w,h){return {w,h,ops:[],imgs:[]};}
+function rgb01(hex){const n=parseInt(hex.slice(1),16);return [(n>>16)/255,(n>>8&255)/255,(n&255)/255].map(v=>nf(v,4)).join(' ');}
+function pdfPath(pg,segs,fill){
+  const o=[rgb01(fill)+' rg']; let px=0,py=0,sx=0,sy=0;
+  for(const s of segs){switch(s[0]){
+    case 'M':px=sx=s[1];py=sy=s[2];o.push(nf(px)+' '+nf(py)+' m');break;
+    case 'L':px=s[1];py=s[2];o.push(nf(px)+' '+nf(py)+' l');break;
+    case 'Q':{const [,x1,y1,x,y]=s;o.push([px+2/3*(x1-px),py+2/3*(y1-py),x+2/3*(x1-x),y+2/3*(y1-y),x,y].map(v=>nf(v)).join(' ')+' c');px=x;py=y;break;}
+    case 'C':o.push(s.slice(1).map(v=>nf(v)).join(' ')+' c');px=s[5];py=s[6];break;
+    case 'Z':o.push('h');px=sx;py=sy;break;}}
+  o.push('f');pg.ops.push(o.join('\n'));
+}
+function pdfImg(pg,img,m){ // m: jednotkový čtverec obrázku → mm stránky
+  const name='Im'+(pg.imgs.length+1);pg.imgs.push(Object.assign({name},img));
+  pg.ops.push(`q ${[m.a,m.b,m.c,m.d,m.e,m.f].map(v=>nf(v,5)).join(' ')} cm /${name} Do Q`);
+}
+function rasterFor(it,dpi=400){ // obrázek z návrhu → plátno pro PDF (bitmapa v plném rozlišení, SVG vykreslené na 400 dpi)
+  const mmW=Math.hypot(it.m.a,it.m.b)*it.w, mmH=Math.hypot(it.m.c,it.m.d)*it.h;
+  let pw=it.draw.width||it.w, ph=it.draw.height||it.h;
+  if(it.svg){pw=mmW/25.4*dpi;ph=mmH/25.4*dpi;} else {const mx=mmW/25.4*600;if(pw>mx){ph*=mx/pw;pw=mx;}}
+  const cv=document.createElement('canvas');cv.width=clamp(Math.round(pw),1,8000);cv.height=clamp(Math.round(ph),1,8000);
+  const c=cv.getContext('2d');c.imageSmoothingQuality='high';c.drawImage(it.draw,0,0,cv.width,cv.height);return cv;
+}
+function drawItems(pg,items,T){ // T = dodatečná matice mm → mm (zmenšený náhled v technickém listu)
+  const TM=T?new DOMMatrix([T.a,T.b,T.c,T.d,T.e,T.f]):null;
+  for(const it of items){
+    if(it.k==='path') pdfPath(pg,T?xf(it.segs,T):it.segs,it.fill);
+    else{let m=it.m.multiply(new DOMMatrix([it.w,0,0,-it.h,0,it.h]));if(TM)m=TM.multiply(m);it._cv=it._cv||rasterFor(it);pdfImg(pg,{canvas:it._cv},m);}
+  }
+}
+async function pdfImageObj(im,add){
+  if(im.jpeg) return add({head:`<< /Type /XObject /Subtype /Image /Width ${im.w} /Height ${im.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${im.jpeg.length} >>`,stream:im.jpeg});
+  const cv=im.canvas,w=cv.width,h=cv.height,d=cv.getContext('2d').getImageData(0,0,w,h).data;
+  const rgb=new Uint8Array(w*h*3),al=new Uint8Array(w*h);let opaque=true;
+  for(let i=0,j=0,k=0;i<d.length;i+=4){rgb[j++]=d[i];rgb[j++]=d[i+1];rgb[j++]=d[i+2];al[k++]=d[i+3];if(d[i+3]!==255)opaque=false;}
+  let sm='';
+  if(!opaque){const za=await deflate(al);sm=` /SMask ${add({head:`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length ${za.length} >>`,stream:za})} 0 R`;}
+  const z=await deflate(rgb);
+  return add({head:`<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode${sm} /Length ${z.length} >>`,stream:z});
+}
+async function pdfBlob(pages,title){
+  const enc=new TextEncoder(), objs=[], add=o=>{objs.push(o);return objs.length;};
+  const cat=add(null), pagesN=add(null), kids=[], k=72/25.4;
+  for(const pg of pages){
+    const res=[];for(const im of pg.imgs) res.push(`/${im.name} ${await pdfImageObj(im,add)} 0 R`);
+    const Wp=pg.w*k,Hp=pg.h*k, z=await deflate(enc.encode(`${nf(k,6)} 0 0 ${nf(-k,6)} 0 ${nf(Hp,4)} cm\n${pg.ops.join('\n')}\n`));
+    const c=add({head:`<< /Length ${z.length} /Filter /FlateDecode >>`,stream:z}), box=`[0 0 ${nf(Wp,4)} ${nf(Hp,4)}]`;
+    kids.push(add({head:`<< /Type /Page /Parent ${pagesN} 0 R /MediaBox ${box} /TrimBox ${box} /Resources << /XObject << ${res.join(' ')} >> >> /Contents ${c} 0 R >>`}));
+  }
+  objs[cat-1]={head:`<< /Type /Catalog /Pages ${pagesN} 0 R >>`};
+  objs[pagesN-1]={head:`<< /Type /Pages /Kids [${kids.map(n=>n+' 0 R').join(' ')}] /Count ${kids.length} >>`};
+  const t=new Date(),p2=v=>String(v).padStart(2,'0');
+  const info=add({head:`<< /Title ${pdfStr(title)} /Creator ${pdfStr('KSH Studio potisku')} /Producer ${pdfStr('KSH Studio potisku')} /CreationDate (D:${t.getFullYear()}${p2(t.getMonth()+1)}${p2(t.getDate())}${p2(t.getHours())}${p2(t.getMinutes())}${p2(t.getSeconds())}) >>`});
+  const parts=[new Uint8Array([37,80,68,70,45,49,46,52,10,37,226,227,207,211,10])]; // %PDF-1.4 + binární komentář
+  let off=parts[0].length; const offs=[];
+  for(let i=0;i<objs.length;i++){
+    const o=objs[i]; offs.push(off);
+    const a=enc.encode(`${i+1} 0 obj\n${o.head}\n${o.stream?'stream\n':''}`); parts.push(a); off+=a.length;
+    if(o.stream){parts.push(o.stream);off+=o.stream.length;}
+    const b=enc.encode(`${o.stream?'\nendstream\n':''}endobj\n`); parts.push(b); off+=b.length;
+  }
+  parts.push(enc.encode(`xref\n0 ${objs.length+1}\n0000000000 65535 f \n${offs.map(v=>String(v).padStart(10,'0')+' 00000 n \n').join('')}trailer\n<< /Size ${objs.length+1} /Root ${cat} 0 R /Info ${info} 0 R >>\nstartxref\n${off}\n%%EOF\n`));
+  return new Blob(parts,{type:'application/pdf'});
+}
+// --- ZIP (bez komprese, PDF/PNG jsou zkomprimované samy) ---
+function zipBlob(files){
+  const enc=new TextEncoder(), parts=[], cen=[]; let off=0;
+  const t=new Date(), dt=((t.getFullYear()-1980)<<9)|((t.getMonth()+1)<<5)|t.getDate(), tm=(t.getHours()<<11)|(t.getMinutes()<<5)|(t.getSeconds()>>1);
+  for(const f of files){
+    const nm=enc.encode(f.name), crc=crc32(f.data), n=f.data.length;
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(10,tm,true);h.setUint16(12,dt,true);
+    h.setUint32(14,crc,true);h.setUint32(18,n,true);h.setUint32(22,n,true);h.setUint16(26,nm.length,true);
+    parts.push(new Uint8Array(h.buffer),nm,f.data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(12,tm,true);c.setUint16(14,dt,true);
+    c.setUint32(16,crc,true);c.setUint32(20,n,true);c.setUint32(24,n,true);c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    cen.push(new Uint8Array(c.buffer),nm); off+=30+nm.length+n;
+  }
+  const cs=cen.reduce((a,b)=>a+b.length,0), e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,cs,true);e.setUint32(16,off,true);
+  return new Blob([...parts,...cen,new Uint8Array(e.buffer)],{type:'application/zip'});
+}
+// --- texty pro tiskárnu ---
+function cmyk(hex){const n=parseInt(hex.slice(1),16),r=(n>>16)/255,g=(n>>8&255)/255,b=(n&255)/255,k=1-Math.max(r,g,b);
+  return k>=1?[0,0,0,100]:[(1-r-k)/(1-k),(1-g-k)/(1-k),(1-b-k)/(1-k),k].map(v=>Math.round(v*100));}
+function rgbTxt(hex){const n=parseInt(hex.slice(1),16);return `${n>>16} ${n>>8&255} ${n&255}`;}
+function placePos(a){
+  const b=a.bb,p=a.p,cx=(b.x0+b.x1)/2;
+  if(p.view==='side') return `horní okraj ${fmt(b.y0)} cm od ramenního švu po délce rukávu, ${Math.abs(cx)<.3?'na ose rukávu':fmt(Math.abs(cx))+' cm mimo osu rukávu'}; horní hrana grafiky míří k rameni`;
+  const front=p.view==='front';
+  const h=Math.abs(cx)<.3?'vodorovně na středu':`střed ${fmt(Math.abs(cx))} cm ${cx>0?(front?'vlevo':'vpravo'):(front?'vpravo':'vlevo')} od středu ${front?'(z pohledu nositele)':'(při pohledu na záda)'}`;
+  return `horní okraj ${fmt(b.y0)} cm pod HPS, ${h}`;
+}
+function artTech(a){return [...new Set(a.layers.map(L=>TECH[L.tech]))].join(' + ');}
+function artFonts(a){return [...new Set(a.layers.filter(L=>L.type==='text').map(L=>`${L.font} ${fw(L)}`).concat(a.layers.some(L=>L.type==='logo'&&(L.variant==='lockup'||L.variant==='stack'))?['JetBrains Mono 500']:[]))];}
+function qtyList(){return $$('#qty input').map(i=>[i.dataset.size,+i.value||0]).filter(x=>x[1]>0);}
+function readmeTxt(arts,col){
+  const m=curModel(), q=qtyList(), total=q.reduce((a,b)=>a+b[1],0), L=[];
+  L.push(`KSH PARTNERS — potisk mikin: ${D.name}`,`Mikina: Malfini ${m.kod} ${m.name}, ${col.name} (${col.code}), ${m.gramaz}`);
+  if(q.length) L.push(`Počty: ${q.map(x=>x[0]+' '+x[1]).join(', ')} = ${total} ks`);
+  L.push('','SOUBORY','  00-technicky-list.pdf   kde, jak velké, jaké barvy, počty kusů');
+  for(const a of arts) L.push('',`  ${a.file}.pdf`,`      ${a.p.label}, ${fmt(a.W/10)} × ${fmt(a.H/10)} cm — tisková data 1:1, vektor, písmo převedené do křivek`,`  ${a.file}.svg      totéž jako SVG (Illustrator, Affinity, Inkscape, CorelDRAW)`,`  ${a.file}-300dpi.png   bitmapa 300 dpi s průhledným pozadím`);
+  L.push('','  nahled-*.jpg            náhled na mikině','  navrh-ksh-studio.json   zdroj pro KSH Studio potisku (Návrh ▸ Otevřít ze souboru)','',
+    'Grafika je ve skutečné velikosti a stranově správně (jak se má na mikině číst).',
+    'Pozice: HPS = nejvyšší bod ramene u límce. Barvy v RGB, HEX a CMYK jsou v technickém listu.','Před sérií prosíme o 1 kus na zkoušku.');
+  if(missingGlyphs.size) L.push('',`Pozor: znaky ${[...missingGlyphs].join(' ')} písmo nemá, v datech chybí.`);
+  return L.join('\n')+'\n';
+}
+// --- technický list (A4 na šířku, jedno písmo Inter Tight, text jako křivky) ---
+const PT=25.4/72;
+function tText(pg,str,x,y,{pt=9,w=400,fill=INK,align='left'}={}){
+  if(!str) return 0;
+  const sc=pt*PT/100; setM('Inter Tight',w,100,0); const tw=mctx.measureText(str).width*sc;
+  const x0=align==='center'?x-tw/2:align==='right'?x-tw:x;
+  for(const it of textVec(str,'Inter Tight',w,100,0,0,0,fill)) pdfPath(pg,xf(it.segs,{a:sc,b:0,c:0,d:sc,e:x0,f:y}),fill);
+  return tw;
+}
+function tWrap(str,maxW,pt,w=400){
+  const sc=pt*PT/100; setM('Inter Tight',w,100,0); const out=[]; let cur='';
+  for(const wd of String(str).split(/\s+/).filter(Boolean)){const t=cur?cur+' '+wd:wd;if(cur&&mctx.measureText(t).width*sc>maxW){out.push(cur);cur=wd;}else cur=t;}
+  if(cur) out.push(cur); return out;
+}
+function tRect(pg,x,y,w,h,fill){pdfPath(pg,rectSegs(x,y,w,h),fill);}
+function tFrame(pg,x,y,w,h,t,fill){tRect(pg,x,y,w,t,fill);tRect(pg,x,y+h-t,w,t,fill);tRect(pg,x,y,t,h,fill);tRect(pg,x+w-t,y,t,h,fill);}
+async function jpegOf(cv,q=.88){return {jpeg:await canvasBytes(cv,'image/jpeg',q),w:cv.width,h:cv.height};}
+function fitBox(w,h,bw,bh){const s=Math.min(bw/w,bh/h);return {s,w:w*s,h:h*s};}
+function placeImg(pg,img,x,y,w,h){pdfImg(pg,img,{a:w,b:0,c:0,d:-h,e:x,f:y+h});}
+// popisky přímo do fotky (rastr): číslo místa / kóty
+function pill(c,txt,x,y,u,{bg=INK,fg=KREM,align='left'}={}){
+  c.font=`600 ${13*u}px "Inter Tight"`;if('letterSpacing' in c)c.letterSpacing='0px';const tw=c.measureText(txt).width,ph=19*u,pw=tw+12*u;
+  const x0=align==='center'?x-pw/2:align==='right'?x-pw:x;
+  c.fillStyle=bg;c.fillRect(x0,y-ph/2,pw,ph);c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=1.2*u;c.strokeRect(x0,y-ph/2,pw,ph);c.fillStyle=fg;c.textBaseline='middle';c.fillText(txt,x0+6*u,y+.5*u);c.textBaseline='alphabetic';
+}
+function artPoly(a,cal,S){ // obálka potisku v px fotky (×S)
+  const s=cal.s,{x0,y0,x1,y1}=a.bb;
+  if(a.p.view==='side'){const ax=sleeveAxis(cal);const f=(u,v)=>[S*(cal.x0+ax.ux*v*s+ax.vx*u*s),S*(cal.y0+ax.uy*v*s+ax.vy*u*s)];return [f(x0,y0),f(x1,y0),f(x1,y1),f(x0,y1)];}
+  return [[x0,y0],[x1,y0],[x1,y1],[x0,y1]].map(([x,y])=>[S*(cal.cx+x*s),S*(cal.hps+y*s)]);
+}
+async function overviewView(v,arts){ // náhled na mikině s čísly míst
+  const P=await getPhoto(v), S=1, cv=await renderViewCanvas(v,S), c=cv.getContext('2d'), cal=P.cal, u=cv.width/700;
+  for(const a of arts.filter(a=>a.p.view===v)){const pts=artPoly(a,cal,S);const x=Math.min(...pts.map(p=>p[0])),y=Math.min(...pts.map(p=>p[1]));
+    c.beginPath();c.arc(x-4*u,y-4*u,11*u,0,7);c.fillStyle=KORAL;c.fill();c.fillStyle=INK;c.font=`700 ${13*u}px "Inter Tight"`;c.textAlign='center';c.textBaseline='middle';c.fillText(String(a.no),x-4*u,y-3.5*u);c.textAlign='left';c.textBaseline='alphabetic';}
+  if(v==='side') return cv;
+  const s=cal.s, X0=Math.max(0,cal.cx-34*s), X1=Math.min(cv.width,cal.cx+34*s), Y0=Math.max(0,cal.hps-14*s), Y1=Math.min(cv.height,cal.hps+84*s);
+  const o=document.createElement('canvas');o.width=Math.round(X1-X0);o.height=Math.round(Y1-Y0);o.getContext('2d').drawImage(cv,-X0,-Y0);return o;
+}
+async function detailView(a){ // výřez místa s kótami
+  const v=a.p.view, P=await getPhoto(v), S=2, cv=await renderViewCanvas(v,S), cal=P.cal, s=cal.s*S, b=a.bb;
+  const mg=clamp(Math.max(a.W,a.H)/20,6,10); let X0,Y0,X1,Y1; // výřez podle velikosti potisku, vždy s HPS a středem
+  if(v!=='side'){X0=S*cal.cx+(Math.min(0,b.x0)-mg)*s;X1=S*cal.cx+(Math.max(0,b.x1)+mg)*s;Y0=S*cal.hps-7*s;Y1=S*cal.hps+(b.y1+mg)*s;}
+  else{const q=artPoly(a,cal,S).concat([[S*cal.x0,S*cal.y0]]);X0=Math.min(...q.map(p=>p[0]))-mg*s;X1=Math.max(...q.map(p=>p[0]))+mg*s;Y0=Math.min(...q.map(p=>p[1]))-mg*s;Y1=Math.max(...q.map(p=>p[1]))+mg*s;}
+  X0=Math.max(0,X0);Y0=Math.max(0,Y0);X1=Math.min(cv.width,X1);Y1=Math.min(cv.height,Y1);
+  const o=document.createElement('canvas');o.width=Math.round(X1-X0);o.height=Math.round(Y1-Y0);const c=o.getContext('2d');c.drawImage(cv,-X0,-Y0);
+  const u=o.width/520, pts=artPoly(a,cal,S).map(([x,y])=>[x-X0,y-Y0]);
+  const halo=(draw,col,w,ds=[])=>{c.save();c.setLineDash(ds);c.strokeStyle='rgba(255,255,255,.9)';c.lineWidth=w+2.6*u;c.beginPath();draw();c.stroke();c.strokeStyle=col;c.lineWidth=w;c.beginPath();draw();c.stroke();c.restore();};
+  const dash=(x1,y1,x2,y2,col)=>halo(()=>{c.moveTo(x1,y1);c.lineTo(x2,y2);},col,1.5*u,[7*u,5*u]);
+  const dim=(x1,y1,x2,y2)=>halo(()=>{c.moveTo(x1,y1);c.lineTo(x2,y2);const ang=Math.atan2(y2-y1,x2-x1),t=7*u;
+    for(const [x,y] of [[x1,y1],[x2,y2]]){c.moveTo(x-Math.sin(ang)*t,y+Math.cos(ang)*t);c.lineTo(x+Math.sin(ang)*t,y-Math.cos(ang)*t);}},INK,1.8*u);
+  // potisk
+  c.save();c.strokeStyle=KORAL;c.lineWidth=2.2*u;c.beginPath();pts.forEach(([x,y],i)=>i?c.lineTo(x,y):c.moveTo(x,y));c.closePath();c.stroke();c.restore();
+  if(v==='side'){
+    const ax=sleeveAxis(cal), sx=S*cal.x0-X0, sy=S*cal.y0-Y0, top=[(pts[0][0]+pts[1][0])/2,(pts[0][1]+pts[1][1])/2];
+    dash(sx,sy,top[0],top[1],'rgba(30,30,30,.55)');c.beginPath();c.arc(sx,sy,5*u,0,7);c.fillStyle=INK;c.fill();
+    pill(c,`${fmt(b.y0)} cm od ramene`,(sx+top[0])/2+12*u,(sy+top[1])/2,u);
+    const r=[pts[1],pts[2]], m=[(r[0][0]+r[1][0])/2,(r[0][1]+r[1][1])/2];
+    pill(c,`${fmt(a.W/10)} × ${fmt(a.H/10)} cm`,m[0]+14*u,m[1],u,{bg:KORAL,fg:INK});
+    return o;
+  }
+  const X=x=>S*(cal.cx+x*cal.s)-X0, Y=y=>S*(cal.hps+y*cal.s)-Y0;
+  dash(X(0),Y(-8),X(0),o.height,'rgba(30,30,30,.45)');
+  dash(0,Y(0),o.width,Y(0),INK); pill(c,'HPS',6*u,Y(0)-14*u,u);
+  // kóty: šířka nad potiskem, výška vpravo, od HPS vlevo, od středu
+  const gap=16*u;
+  dim(X(b.x0),Y(b.y1)+gap,X(b.x1),Y(b.y1)+gap); pill(c,`${fmt(a.W/10)} cm`,(X(b.x0)+X(b.x1))/2,Y(b.y1)+gap+16*u,u,{align:'center',bg:KORAL,fg:INK});
+  dim(X(b.x1)+gap,Y(b.y0),X(b.x1)+gap,Y(b.y1)); pill(c,`${fmt(a.H/10)} cm`,X(b.x1)+gap+10*u,(Y(b.y0)+Y(b.y1))/2,u,{bg:KORAL,fg:INK});
+  if(b.y0>.2){dim(X(b.x0)-gap,Y(0),X(b.x0)-gap,Y(b.y0)); pill(c,`${fmt(b.y0)} cm`,X(b.x0)-gap-10*u,(Y(0)+Y(b.y0))/2,u,{align:'right'});}
+  const cx=(b.x0+b.x1)/2;
+  if(Math.abs(cx)>=.3){const yy=Y(b.y0)-gap*.9;dim(X(0),yy,X(cx),yy);pill(c,`${fmt(Math.abs(cx))} cm od středu`,(X(0)+X(cx))/2,yy-15*u,u,{align:'center'});}
+  return o;
+}
+async function techSheetBlob(arts,col){
+  const PW=297,PH=210,MG=14,MUT='#6c655d',m=curModel(),pages=[],q=qtyList(),total=q.reduce((a,b)=>a+b[1],0);
+  const date=new Date().toLocaleDateString('cs-CZ'), note=($('#b-note')?.value||'').trim();
+  const head=(pg,title,sub)=>{
+    const k=7/LOGO.symH; pdfPath(pg,xf(pd(KSH.tisk.logo.sym),{a:k,b:0,c:0,d:k,e:MG,f:MG-1}),KORAL);
+    tText(pg,'KSH PARTNERS · technický list potisku',MG+9.5,MG+4.6,{pt:8,w:600});
+    tText(pg,date,PW-MG,MG+4.6,{pt:8,fill:MUT,align:'right'});
+    tRect(pg,MG,MG+8.5,PW-2*MG,.25,INK);
+    tText(pg,title,MG,MG+20,{pt:20,w:600});
+    if(sub) tText(pg,sub,MG,MG+27,{pt:9.5,fill:MUT});
+  };
+  const swatch=(pg,x,y,hex,sz=3.6)=>{tRect(pg,x,y,sz,sz,hex);tFrame(pg,x,y,sz,sz,.15,INK);};
+  // 1) přehled
+  {
+    const pg=newPage(PW,PH); pages.push(pg);
+    head(pg,D.name,`Malfini ${m.kod} ${m.name} · ${col.name} (${col.code}) · ${m.gramaz} · ${m.material.join(', ')}`);
+    const vs=['front','back','side'].filter(v=>v!=='side'||arts.some(a=>a.p.view==='side')).filter(viewAvailable);
+    const top=MG+33, boxH=PH-top-MG-6, areaW=172, gapI=4, cw=(areaW-gapI*(vs.length-1))/vs.length;
+    let x=MG;
+    for(const v of vs){const cv=await overviewView(v,arts);const f=fitBox(cv.width,cv.height,cw,boxH);const img=await jpegOf(cv);
+      placeImg(pg,img,x+(cw-f.w)/2,top,f.w,f.h);
+      tText(pg,{front:'Předek',back:'Záda',side:'Rukáv'}[v],x+cw/2,top+f.h+4.5,{pt:8.5,fill:MUT,align:'center'});x+=cw+gapI;}
+    const rx=MG+areaW+10, rw=PW-MG-rx; let y=top+3;
+    tText(pg,'Potisk',rx,y,{pt:11,w:600}); y+=6;
+    for(const a of arts){
+      pdfPath(pg,ellSegs(rx+2.6,y-1.2,2.6,2.6),KORAL); tText(pg,String(a.no),rx+2.6,y,{pt:8,w:700,align:'center'});
+      tText(pg,a.p.label,rx+7,y,{pt:10,w:600}); tText(pg,`${fmt(a.W/10)} × ${fmt(a.H/10)} cm`,rx+rw,y,{pt:10,w:600,align:'right'}); y+=4.6;
+      for(const ln of tWrap(placePos(a)+' · '+artTech(a),rw-7,8)){tText(pg,ln,rx+7,y,{pt:8,fill:MUT});y+=3.6;}
+      let sx=rx+7; for(const h of a.fills.slice(0,8)){swatch(pg,sx,y-2.4,h,3);tText(pg,h.toUpperCase(),sx+4,y,{pt:7.5});sx+=19;if(sx>rx+rw-18){sx=rx+7;y+=4.4;}}
+      if(a.hasImg) tText(pg,'+ obrázek (plnobarevně)',sx,y,{pt:7.5,fill:MUT});
+      y+=7.5;
+    }
+    y+=1; tText(pg,'Kusy',rx,y,{pt:11,w:600}); y+=5.5;
+    if(q.length){for(const ln of tWrap(q.map(x=>`${x[0]} ${x[1]}`).join(' · ')+` = ${total} ks`,rw,9.5)){tText(pg,ln,rx,y,{pt:9.5});y+=4.6;}}
+    else{tText(pg,'doplnit podle velikostí',rx,y,{pt:9.5,fill:MUT});y+=4.6;}
+    if(note){y+=2;for(const ln of tWrap(note,rw,8.5)){tText(pg,ln,rx,y,{pt:8.5});y+=4;}}
+    y+=3; for(const ln of tWrap('HPS = nejvyšší bod ramene u límce. Grafika v souborech je 1 : 1 a stranově správně. Před sérií prosíme o 1 kus na zkoušku.',rw,7.5)){tText(pg,ln,rx,y,{pt:7.5,fill:MUT});y+=3.4;}
+  }
+  // 2) každé místo zvlášť
+  const warns=computeWarns();
+  for(const a of arts){
+    const pg=newPage(PW,PH); pages.push(pg);
+    head(pg,`${a.no} · ${a.p.label}`,`${fmt(a.W/10)} × ${fmt(a.H/10)} cm · ${artTech(a)} · ${col.name} mikina`);
+    const top=MG+33, lw=134, bh=PH-top-MG;
+    const dv=await detailView(a), f=fitBox(dv.width,dv.height,lw,bh); placeImg(pg,await jpegOf(dv),MG,top,f.w,f.h);
+    const rx=MG+lw+10, rw=PW-MG-rx, ph=74;
+    tRect(pg,rx,top,rw,ph,col.hex); tFrame(pg,rx,top,rw,ph,.25,INK);
+    const g=fitBox(a.W,a.H,rw-12,ph-12); drawItems(pg,a.items,{a:g.s,b:0,c:0,d:g.s,e:rx+(rw-g.w)/2,f:top+(ph-g.h)/2});
+    tText(pg,g.s>=.995?'grafika ve skutečné velikosti':`grafika zmenšená na ${fmt(g.s*100,0)} % · soubory jsou 1 : 1`,rx,top+ph+4,{pt:7.5,fill:MUT});
+    let y=top+ph+12; const lab=26;
+    const row=(k,lines,opt={})=>{tText(pg,k,rx,y,{pt:8,fill:MUT});for(const ln of lines){tText(pg,ln,rx+lab,y,{pt:9,...opt});y+=4.3;}y+=1.6;};
+    row('Rozměr',[`${fmt(a.W/10)} × ${fmt(a.H/10)} cm (š × v)`],{w:600});
+    row('Umístění',tWrap(placePos(a),rw-lab,9));
+    row('Technika',[artTech(a)]);
+    tText(pg,'Barvy',rx,y,{pt:8,fill:MUT});
+    for(const h of a.fills.slice(0,6)){const c=cmyk(h);swatch(pg,rx+lab,y-2.8,h);tText(pg,`${h.toUpperCase()}   RGB ${rgbTxt(h)}   CMYK ${c.join(' ')}`,rx+lab+5.5,y,{pt:8.5});y+=4.8;}
+    if(a.fills.length>6){tText(pg,`+ ${a.fills.length-6} dalších`,rx+lab,y,{pt:8.5,fill:MUT});y+=4.8;}
+    if(a.hasImg){tText(pg,'obrázek: plnobarevně, v PDF v plném rozlišení',rx+lab,y,{pt:8.5,fill:MUT});y+=4.8;}
+    tText(pg,'CMYK je orientační, platí HEX / vzorek',rx+lab,y,{pt:7,fill:MUT});y+=5.6;
+    const fonts=artFonts(a); if(fonts.length) row('Písmo',[fonts.join(', ')+' — v křivkách']);
+    row('Soubory',[`${a.file}.pdf`,`.svg · -300dpi.png`]);
+    const wa=warns.filter(w=>w[2]===a.key).map(w=>w[1]);
+    for(const w of wa.slice(0,3)) for(const ln of tWrap('! '+w,rw,8)){tText(pg,ln,rx,y,{pt:8,fill:'#c94f4a'});y+=3.8;}
+  }
+  return pdfBlob(pages,`${D.name} — technický list`);
+}
+// --- export ---
+function busy(t){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);}
+let packBusy=false;
+async function exportPack(onlySheet=false){
+  if(packBusy) return; packBusy=true; $$('#b-zip,#b-sheet').forEach(b=>b.disabled=true);
+  try{
+    busy('Připravuju tisková data…');
+    const col=curColor(), arts=await buildArts(col);
+    if(!arts.length){toast('Návrh nemá žádný potisk');return;}
+    const base=`KSH-${safe(D.name)}`, enc=new TextEncoder(), files=[];
+    busy('Technický list…');
+    const sheet=await techSheetBlob(arts,col);
+    if(onlySheet){download(sheet,`${base}-technicky-list.pdf`);toast('Technický list se stahuje');return;}
+    files.push(['00-technicky-list.pdf',new Uint8Array(await sheet.arrayBuffer())]);
+    for(const a of arts){
+      busy(`Tisková data ${a.no}/${arts.length} · ${a.p.label}…`);
+      const pg=newPage(a.W,a.H); drawItems(pg,a.items);
+      files.push([a.file+'.pdf',new Uint8Array(await (await pdfBlob([pg],`${D.name} — ${a.p.label} ${fmt(a.W/10)} × ${fmt(a.H/10)} cm`)).arrayBuffer())]);
+      files.push([a.file+'.svg',enc.encode(artSVG(a,`${D.name} — ${a.p.label}`))]);
+      files.push([a.file+'-300dpi.png',await artPNG(a,300)]);
+    }
+    busy('Náhledy…');
+    for(const [v,n] of [['front','predek'],['back','zada'],['side','rukav']]) if(arts.some(a=>a.p.view===v)&&viewAvailable(v)) files.push([`nahled-${n}.jpg`,await canvasBytes(await renderViewCanvas(v,2),'image/jpeg',.9)]);
+    files.push(['navrh-ksh-studio.json',enc.encode(JSON.stringify(D,null,1))]);
+    files.push(['CTI-ME.txt',enc.encode(readmeTxt(arts,col))]);
+    download(zipBlob(files.map(([n,d])=>({name:`${base}-tisk/${n}`,data:d}))),`${base}-tisk.zip`);
+    toast(missingGlyphs.size?`Staženo — pozor, písmo nemá znaky ${[...missingGlyphs].join(' ')}`:`Balíček pro tisk se stahuje (${arts.length}× místo potisku)`,missingGlyphs.size?6000:2600);
+  }catch(err){console.error(err);toast('Export se nepovedl: '+(err&&err.message||err),6000);}
+  finally{packBusy=false;$$('#b-zip,#b-sheet').forEach(b=>b.disabled=false);}
+}
+async function packSummary(){
+  const box=$('#pk-list'); box.innerHTML='<li>počítám rozměry…</li>';
+  try{const arts=await buildArts(curColor());
+    box.innerHTML=arts.length?arts.map(a=>`<li><b>${a.no} · ${esc(a.p.label)}</b> ${fmt(a.W/10)} × ${fmt(a.H/10)} cm · ${esc(artTech(a))} · ${[a.fills.length?`${a.fills.length} ${a.fills.length===1?'barva':a.fills.length<5?'barvy':'barev'}`:'',a.hasImg?'obrázek':''].filter(Boolean).join(' + ')}</li>`).join(''):'<li>Návrh nemá žádný potisk.</li>';
+    if(missingGlyphs.size) box.innerHTML+=`<li class="bad">Písmo nemá znaky ${esc([...missingGlyphs].join(' '))} — v datech budou chybět.</li>`;
+  }catch(err){box.innerHTML=`<li class="bad">${esc(err.message||String(err))}</li>`;}
+}
+
+let toastT=null;function toast(t,ms=1800){const el=$('#toast');el.textContent=t;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>el.hidden=true,ms);}
 
 // ---------- start ----------
 (async function start(){

@@ -1,4 +1,4 @@
-# Licence písem (vložená v assets/fonts.js)
+# Licence písem (vložená v assets/fonts.js, obrysy znaků pro tisková data v assets/tisk.js)
 
 - **VT323** — SIL Open Font License 1.1 — https://github.com/google/fonts/tree/main/ofl/vt323
 - **JetBrains Mono** — SIL Open Font License 1.1 — https://github.com/JetBrains/JetBrainsMono
